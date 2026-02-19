@@ -5,6 +5,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 VERSIONS_FILE="$SCRIPT_DIR/h2c-known-versions.yaml"
 MANIFESTS_DIR="$SCRIPT_DIR/manifests"
 RAW_BASE="https://raw.githubusercontent.com"
+CORE_REPO="helmfile2compose/h2c-core"
 MANAGER_URL="$RAW_BASE/helmfile2compose/h2c-manager/main/h2c-manager.py"
 REGISTRY_URL="$RAW_BASE/helmfile2compose/h2c-manager/main/extensions.json"
 TMP_BASE="/tmp/h2c-testsuite"
@@ -96,6 +97,8 @@ parse_versions_file() {
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+CORE_LATEST_CACHE="$TMP_BASE/core-latest.py"
+
 download_manager() {
     mkdir -p "$TMP_BASE"
     if [[ ! -f "$MANAGER_PATH" ]]; then
@@ -104,7 +107,18 @@ download_manager() {
     fi
 }
 
-# Install h2c-core + extensions from main branch (no API calls)
+download_latest_core() {
+    mkdir -p "$TMP_BASE"
+    if [[ -n "$LOCAL_CORE" ]]; then
+        cp "$LOCAL_CORE" "$CORE_LATEST_CACHE"
+    elif [[ ! -f "$CORE_LATEST_CACHE" ]]; then
+        echo "Downloading latest h2c-core release..."
+        curl -fsSL -o "$CORE_LATEST_CACHE" \
+            "https://github.com/$CORE_REPO/releases/latest/download/helmfile2compose.py"
+    fi
+}
+
+# Install h2c-core + extensions for latest (no API calls for extensions)
 # $1 = workdir
 # $2+ = extension names (bare, no version pins)
 install_from_main() {
@@ -112,12 +126,7 @@ install_from_main() {
     local exts=("$@")
 
     mkdir -p "$workdir/.h2c/extensions"
-    if [[ -n "$LOCAL_CORE" ]]; then
-        cp "$LOCAL_CORE" "$workdir/.h2c/helmfile2compose.py"
-    else
-        curl -fsSL "$RAW_BASE/helmfile2compose/h2c-core/main/helmfile2compose.py" \
-            -o "$workdir/.h2c/helmfile2compose.py"
-    fi
+    cp "$CORE_LATEST_CACHE" "$workdir/.h2c/helmfile2compose.py"
 
     if [[ ${#exts[@]} -gt 0 ]]; then
         # Fetch registry once to resolve repo/file for each extension
@@ -209,12 +218,12 @@ download_core() {
     local dest="$1"
     local version="$2"  # tag or "main"
 
-    if [[ "$version" == "main" && -n "$LOCAL_CORE" ]]; then
-        cp "$LOCAL_CORE" "$dest"
-    elif [[ "$version" == "main" ]]; then
-        curl -fsSL "$RAW_BASE/helmfile2compose/h2c-core/main/helmfile2compose.py" -o "$dest"
+    if [[ "$version" == "main" ]]; then
+        download_latest_core
+        cp "$CORE_LATEST_CACHE" "$dest"
     else
-        curl -fsSL "$RAW_BASE/helmfile2compose/h2c-core/refs/tags/$version/helmfile2compose.py" -o "$dest"
+        curl -fsSL -o "$dest" \
+            "https://github.com/$CORE_REPO/releases/download/$version/helmfile2compose.py"
     fi
 }
 
@@ -291,6 +300,7 @@ run_regression() {
     echo ""
 
     download_manager
+    download_latest_core
     _CLEANUP_DIRS+=("$TMP_BASE" "$TMP_BASE-ref" "$TMP_BASE-latest")
 
     local ext_names=()
