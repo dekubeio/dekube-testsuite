@@ -5,7 +5,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 VERSIONS_FILE="$SCRIPT_DIR/h2c-known-versions.yaml"
 MANIFESTS_DIR="$SCRIPT_DIR/manifests"
 RAW_BASE="https://raw.githubusercontent.com"
-CORE_REPO="helmfile2compose/h2c-core"
+CORE_REPO="helmfile2compose/helmfile2compose"
 MANAGER_URL="$RAW_BASE/helmfile2compose/h2c-manager/main/h2c-manager.py"
 REGISTRY_URL="$RAW_BASE/helmfile2compose/h2c-manager/main/extensions.json"
 TMP_BASE="/tmp/h2c-testsuite"
@@ -189,6 +189,19 @@ run_h2c_local() {
     )
 }
 
+_normalize_compose() {
+    # Sort top-level service keys in compose.yml for order-agnostic comparison
+    python3 -c "
+import sys, yaml
+with open(sys.argv[1]) as f:
+    doc = yaml.safe_load(f)
+if doc and 'services' in doc:
+    doc['services'] = dict(sorted(doc['services'].items()))
+with open(sys.argv[1], 'w') as f:
+    yaml.dump(doc, f, default_flow_style=False, sort_keys=False)
+" "$1"
+}
+
 diff_outputs() {
     local dir_a="$1"
     local dir_b="$2"
@@ -196,6 +209,13 @@ diff_outputs() {
     local diff_file="$4"
 
     rm -f "$dir_a/helmfile2compose.yaml" "$dir_b/helmfile2compose.yaml"
+
+    # Normalize service ordering in compose files before comparing
+    for dir in "$dir_a" "$dir_b"; do
+        for f in "$dir"/compose*.yml; do
+            [[ -f "$f" ]] && _normalize_compose "$f"
+        done
+    done
 
     if diff -ru "$dir_a" "$dir_b" > "$diff_file" 2>&1; then
         echo "  $label: identical"
