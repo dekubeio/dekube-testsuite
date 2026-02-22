@@ -2,7 +2,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-VERSIONS_FILE="$SCRIPT_DIR/h2c-known-versions.yaml"
+VERSIONS_FILE="$SCRIPT_DIR/h2c-known-versions.json"
 MANIFESTS_DIR="$SCRIPT_DIR/manifests"
 RAW_BASE="https://raw.githubusercontent.com"
 CORE_REPO="helmfile2compose/helmfile2compose"
@@ -49,40 +49,23 @@ if [[ -n "$LOCAL_CORE" && ! -f "$LOCAL_CORE" ]]; then
 fi
 
 # ---------------------------------------------------------------------------
-# YAML parser (no pyyaml needed)
+# Parse versions file (JSON)
 # ---------------------------------------------------------------------------
 parse_versions_file() {
-    local section=""
     REF_CORE=""
     declare -gA REF_EXTENSIONS=()
     declare -ga EXCLUDE_EXT_ALL=()
 
-    while IFS= read -r line; do
-        stripped="${line#"${line%%[![:space:]]*}"}"
-        if [[ "$stripped" == core:* ]]; then
-            REF_CORE="${stripped#core:}"
-            REF_CORE="${REF_CORE// /}"
-            section=""
-        elif [[ "$stripped" == "extensions:" ]]; then
-            section="extensions"
-        elif [[ "$stripped" == "exclude-ext-all:" ]]; then
-            section="exclude-ext-all"
-        elif [[ "$section" == "extensions" ]] && [[ "$stripped" == *:* ]] && [[ "$stripped" != "#"* ]]; then
-            local name="${stripped%%:*}"
-            local version="${stripped#*:}"
-            name="${name// /}"
-            version="${version// /}"
-            if [[ -n "$name" && -n "$version" ]]; then
-                REF_EXTENSIONS["$name"]="$version"
-            fi
-        elif [[ "$section" == "exclude-ext-all" ]] && [[ "$stripped" == "- "* ]]; then
-            local val="${stripped#- }"
-            val="${val// /}"
-            EXCLUDE_EXT_ALL+=("$val")
-        elif [[ "$stripped" != "" && "$stripped" != "#"* && "$stripped" != "reference:" ]]; then
-            section=""
-        fi
-    done < "$VERSIONS_FILE"
+    eval "$(python3 -c "
+import json, sys
+with open(sys.argv[1]) as f:
+    ref = json.load(f)['reference']
+print(f'REF_CORE={ref[\"core\"]}')
+for name, ver in ref.get('extensions', {}).items():
+    print(f'REF_EXTENSIONS[{name}]={ver}')
+for name in ref.get('exclude-ext-all', []):
+    print(f'EXCLUDE_EXT_ALL+=({name})')
+" "$VERSIONS_FILE")"
 
     if [[ -n "$CORE_OVERRIDE" ]]; then
         REF_CORE="$CORE_OVERRIDE"

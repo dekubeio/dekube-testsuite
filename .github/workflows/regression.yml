@@ -6,7 +6,7 @@ on:
   workflow_dispatch:          # manual trigger
   push:
     paths:
-      - 'h2c-known-versions.yaml'
+      - 'h2c-known-versions.json'
       - 'manifests/**'
       - 'run-tests.sh'
 

@@ -58,26 +58,31 @@ A diff **is expected** when things change intentionally between versions. The ou
 
 ## Reference versions
 
-Edit `h2c-known-versions.yaml` to bump the pinned reference:
+Edit `h2c-known-versions.json` to bump the pinned reference:
 
-```yaml
-reference:
-  core: v2.2.0
-  extensions:
-    cert-manager: v0.1.0
-    keycloak: v0.2.0
-    servicemonitor: v0.1.0
-    trust-manager: v0.1.1
-    nginx: v0.1.0
-    traefik: v0.1.0
-    flatten-internal-urls: v0.1.1
-  exclude-ext-all:
-    - flatten-internal-urls
+```json
+{
+  "reference": {
+    "core": "v2.2.0",
+    "extensions": {
+      "cert-manager": "v0.1.0",
+      "keycloak": "v0.2.0",
+      "servicemonitor": "v0.1.0",
+      "trust-manager": "v0.1.1",
+      "nginx": "v0.1.0",
+      "traefik": "v0.1.0",
+      "flatten-internal-urls": "v0.1.1"
+    },
+    "exclude-ext-all": [
+      "flatten-internal-urls"
+    ]
+  }
+}
 ```
 
 Extensions listed here are tested individually; unlisted are skipped. Extensions in `exclude-ext-all` are excluded from the combined `ext-all` combo (e.g. due to incompatibilities declared in the registry).
 
-**Future**: `exclude-ext-all` is a stopgap. The plan is to replace it with explicit `ext-sets` — named combos of extensions to test together — and switch the YAML parser from the hand-rolled state machine to `yq`.
+**Future**: `exclude-ext-all` is a stopgap. The plan is to replace it with explicit `ext-sets` — named combos of extensions to test together.
 
 ## CI
 
@@ -97,7 +102,7 @@ h2c-testsuite/
 │   ├── crds.yaml                 # KeycloakRealmImport, Certificate, ServiceMonitor
 │   └── edge-cases.yaml           # empty docs, 64-char names, missing ns
 ├── generate.py                   # torture test generator (writes to /tmp)
-├── h2c-known-versions.yaml       # reference versions for comparison
+├── h2c-known-versions.json        # reference versions for comparison
 ├── run-tests.sh                  # main test runner
 ├── .github/workflows/
 │   └── regression.yml            # CI (regression only)
