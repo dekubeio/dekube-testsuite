@@ -78,6 +78,7 @@ spec:
                   number: 8443
 ---
 # HAProxy annotations (server-ssl, path-rewrite, server-ca)
+# Multi-path: /api has path-rewrite (strip prefix), /webhooks does not
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -99,6 +100,13 @@ spec:
       http:
         paths:
           - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: backend-service
+                port:
+                  number: 8080
+          - path: /webhooks
             pathType: Prefix
             backend:
               service:
