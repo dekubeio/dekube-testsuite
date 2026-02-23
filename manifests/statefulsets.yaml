@@ -17,6 +17,9 @@ spec:
       labels:
         app: postgresql
     spec:
+      securityContext:
+        runAsUser: 1001
+        fsGroup: 1001
       containers:
         - name: postgresql
           image: bitnami/postgresql:16.3.0
