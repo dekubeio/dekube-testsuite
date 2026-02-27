@@ -1,15 +1,15 @@
 {
   "reference": {
-    "core": "v3.0.1",
+    "core": "v3.1.0",
     "extensions": {
-      "cert-manager": "v0.2.0",
-      "keycloak": "v0.3.0",
-      "servicemonitor": "v0.2.0",
-      "trust-manager": "v0.2.0",
-      "nginx": "v0.2.0",
-      "traefik": "v0.2.0",
-      "flatten-internal-urls": "v0.2.0",
-      "bitnami": "v0.2.0"
+      "cert-manager": "v0.3.0",
+      "keycloak": "v0.4.0",
+      "servicemonitor": "v0.3.0",
+      "trust-manager": "v0.3.0",
+      "nginx": "v0.3.0",
+      "traefik": "v0.3.0",
+      "flatten-internal-urls": "v0.3.0",
+      "bitnami": "v0.3.0"
     },
     "exclude-ext-all": [
       "flatten-internal-urls"
