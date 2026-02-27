@@ -1,8 +1,8 @@
-# h2c-testsuite
+# dekube-testsuite
 
-Regression and performance test suite for [helmfile2compose](https://github.com/helmfile2compose).
+Regression and performance test suite for [dekube](https://dekube.io).
 
-Compares h2c output between a **pinned reference version** and the **latest release** across a set of static edge-case manifests. The test harness uses h2c-manager (rolling from main) as the runner — it's the tool, not the subject. What's compared is core + extensions output between versions.
+Compares dekube output between a **pinned reference version** and the **latest release** across a set of static edge-case manifests. The test harness uses dekube-manager (rolling from main) as the runner — it's the tool, not the subject. What's compared is core + extensions output between versions.
 
 ## Quick start
 
@@ -27,9 +27,9 @@ Compares h2c output between a **pinned reference version** and the **latest rele
 
 ### Regression
 
-1. Downloads h2c-manager from `main`
+1. Downloads dekube-manager from `main`
 2. Creates two workdirs in `/tmp` — one for the reference version, one for latest
-3. Runs h2c multiple times per version:
+3. Runs dekube multiple times per version:
    - **Core only** (no extensions) — baseline
    - **Each extension individually** — isolation testing
    - **All extensions together** — interaction testing
@@ -52,13 +52,13 @@ Run locally (not in CI — runners aren't meant for this). Generates O(n³) mani
 
 A diff **is expected** when things change intentionally between versions. The output is meant for human review — there are no assertions.
 
-- `core-only` diff = pure h2c-core behavioral change
+- `core-only` diff = pure dekube-engine behavioral change
 - `ext-<name>` diff = change in that extension or its interaction with core
 - `ext-all` diff = interaction between all extensions
 
 ## Reference versions
 
-Edit `h2c-known-versions.json` to bump the pinned reference:
+Edit `dekube-known-versions.json` to bump the pinned reference:
 
 ```json
 {
@@ -91,7 +91,7 @@ The GitHub Actions workflow runs regression only (weekly + on push to test files
 ## Structure
 
 ```
-h2c-testsuite/
+dekube-testsuite/
 ├── manifests/                    # static edge-case manifests
 │   ├── deployments.yaml          # basic, multi-container, resource limits
 │   ├── statefulsets.yaml         # volumeClaimTemplates, headless services
@@ -102,7 +102,7 @@ h2c-testsuite/
 │   ├── crds.yaml                 # KeycloakRealmImport, Certificate, ServiceMonitor
 │   └── edge-cases.yaml           # empty docs, 64-char names, missing ns
 ├── generate.py                   # torture test generator (writes to /tmp)
-├── h2c-known-versions.json        # reference versions for comparison
+├── dekube-known-versions.json     # reference versions for comparison
 ├── run-tests.sh                  # main test runner
 ├── .github/workflows/
 │   └── regression.yml            # CI (regression only)

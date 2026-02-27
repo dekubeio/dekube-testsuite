@@ -6,7 +6,7 @@ on:
   workflow_dispatch:          # manual trigger
   push:
     paths:
-      - 'h2c-known-versions.json'
+      - 'dekube-known-versions.json'
       - 'manifests/**'
       - 'run-tests.sh'
 
@@ -24,4 +24,4 @@ jobs:
         if: always()
         with:
           name: regression-diff
-          path: /tmp/h2c-testsuite*/diffs/
+          path: /tmp/dekube-testsuite*/diffs/

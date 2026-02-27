@@ -2,14 +2,14 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-VERSIONS_FILE="$SCRIPT_DIR/h2c-known-versions.json"
+VERSIONS_FILE="$SCRIPT_DIR/dekube-known-versions.json"
 MANIFESTS_DIR="$SCRIPT_DIR/manifests"
 RAW_BASE="https://raw.githubusercontent.com"
-CORE_REPO="helmfile2compose/helmfile2compose"
-MANAGER_URL="$RAW_BASE/helmfile2compose/h2c-manager/main/h2c-manager.py"
-REGISTRY_URL="$RAW_BASE/helmfile2compose/h2c-manager/main/extensions.json"
-TMP_BASE="/tmp/h2c-testsuite"
-MANAGER_PATH="$TMP_BASE/h2c-manager.py"
+CORE_REPO="dekubeio/helmfile2compose"
+MANAGER_URL="$RAW_BASE/dekubeio/dekube-manager/main/dekube-manager.py"
+REGISTRY_URL="$RAW_BASE/dekubeio/dekube-manager/main/extensions.json"
+TMP_BASE="/tmp/dekube-testsuite"
+MANAGER_PATH="$TMP_BASE/dekube-manager.py"
 
 # Cleanup on exit
 _CLEANUP_DIRS=()
@@ -85,7 +85,7 @@ CORE_LATEST_CACHE="$TMP_BASE/core-latest.py"
 download_manager() {
     mkdir -p "$TMP_BASE"
     if [[ ! -f "$MANAGER_PATH" ]]; then
-        echo "Downloading h2c-manager from main..."
+        echo "Downloading dekube-manager from main..."
         curl -fsSL "$MANAGER_URL" -o "$MANAGER_PATH"
     fi
 }
@@ -95,21 +95,21 @@ download_latest_core() {
     if [[ -n "$LOCAL_CORE" ]]; then
         cp "$LOCAL_CORE" "$CORE_LATEST_CACHE"
     elif [[ ! -f "$CORE_LATEST_CACHE" ]]; then
-        echo "Downloading latest h2c-core release..."
+        echo "Downloading latest distribution release..."
         curl -fsSL -o "$CORE_LATEST_CACHE" \
             "https://github.com/$CORE_REPO/releases/latest/download/helmfile2compose.py"
     fi
 }
 
-# Install h2c-core + extensions for latest (no API calls for extensions)
+# Install distribution + extensions for latest (no API calls for extensions)
 # $1 = workdir
 # $2+ = extension names (bare, no version pins)
 install_from_main() {
     local workdir="$1"; shift
     local exts=("$@")
 
-    mkdir -p "$workdir/.h2c/extensions"
-    cp "$CORE_LATEST_CACHE" "$workdir/.h2c/helmfile2compose.py"
+    mkdir -p "$workdir/.dekube/extensions"
+    cp "$CORE_LATEST_CACHE" "$workdir/.dekube/helmfile2compose.py"
 
     if [[ ${#exts[@]} -gt 0 ]]; then
         # Fetch registry once to resolve repo/file for each extension
@@ -120,7 +120,7 @@ install_from_main() {
             repo=$(printf '%s' "$registry" | python3 -c "import json,sys; print(json.load(sys.stdin)['extensions']['$ext']['repo'])")
             file=$(printf '%s' "$registry" | python3 -c "import json,sys; print(json.load(sys.stdin)['extensions']['$ext']['file'])")
             curl -fsSL "$RAW_BASE/$repo/main/$file" \
-                -o "$workdir/.h2c/extensions/$file"
+                -o "$workdir/.dekube/extensions/$file"
         done
     fi
 }
@@ -133,7 +133,7 @@ write_h2c_yaml() {
     mkdir -p "$dir"
     {
         echo "helmfile2ComposeVersion: v1"
-        echo "name: h2c-testsuite"
+        echo "name: dekube-testsuite"
         if [[ -n "$core_ver" ]]; then
             echo "core_version: $core_ver"
         fi
@@ -143,10 +143,10 @@ write_h2c_yaml() {
                 echo "  - $ext"
             done
         fi
-    } > "$dir/helmfile2compose.yaml"
+    } > "$dir/dekube.yaml"
 }
 
-# Run h2c via h2c-manager (downloads pinned versions)
+# Run via dekube-manager (downloads pinned versions)
 run_h2c() {
     local workdir="$1"
     local from_dir="$2"
@@ -159,7 +159,7 @@ run_h2c() {
     )
 }
 
-# Run h2c with pre-installed .h2c/ (no downloads)
+# Run with pre-installed .h2c/ (no downloads)
 run_h2c_local() {
     local workdir="$1"
     local from_dir="$2"
@@ -191,7 +191,7 @@ diff_outputs() {
     local label="$3"
     local diff_file="$4"
 
-    rm -f "$dir_a/helmfile2compose.yaml" "$dir_b/helmfile2compose.yaml"
+    rm -f "$dir_a/dekube.yaml" "$dir_b/dekube.yaml"
 
     # Normalize service ordering in compose files before comparing
     for dir in "$dir_a" "$dir_b"; do
@@ -215,7 +215,7 @@ diff_outputs() {
 }
 
 # ---------------------------------------------------------------------------
-# Performance mode (uses core directly, no h2c-manager)
+# Performance mode (uses core directly, no dekube-manager)
 # ---------------------------------------------------------------------------
 download_core() {
     local dest="$1"
@@ -232,7 +232,7 @@ download_core() {
 
 run_perf() {
     local n="$PERF_N"
-    local torture_dir="/tmp/h2c-torture-${n}"
+    local torture_dir="/tmp/dekube-torture-${n}"
 
     echo "=== Performance test (n=$n) ==="
     echo ""
@@ -249,7 +249,7 @@ run_perf() {
         download_core "$core_path" "$version"
         mkdir -p "$output_dir"
 
-        echo "Running h2c ($label, $version)..."
+        echo "Running dekube ($label, $version)..."
         local start end elapsed
         start=$(python3 -c "import time; print(time.time())")
         python3 "$core_path" --from-dir "$torture_dir/manifests" --output-dir "$output_dir" 2>&1
@@ -365,7 +365,7 @@ run_regression() {
             IFS='|' read -ra latest_ext_args <<< "$latest_exts_str"
         fi
 
-        # Ref: pinned versions via h2c-manager
+        # Ref: pinned versions via dekube-manager
         local ref_workdir="$TMP_BASE-ref/$combo"
         local ref_output="$ref_workdir/output"
         write_h2c_yaml "$ref_workdir" "$REF_CORE" "${ref_ext_args[@]+"${ref_ext_args[@]}"}"
