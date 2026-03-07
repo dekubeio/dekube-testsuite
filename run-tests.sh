@@ -125,17 +125,16 @@ install_from_main() {
     fi
 }
 
-write_h2c_yaml() {
+write_dekube_yaml() {
     local dir="$1"; shift
     local core_ver="$1"; shift
     local exts=("$@")
 
     mkdir -p "$dir"
     {
-        echo "helmfile2ComposeVersion: v1"
         echo "name: dekube-testsuite"
         if [[ -n "$core_ver" ]]; then
-            echo "core_version: $core_ver"
+            echo "distribution_version: $core_ver"
         fi
         if [[ ${#exts[@]} -gt 0 ]]; then
             echo "depends:"
@@ -147,7 +146,7 @@ write_h2c_yaml() {
 }
 
 # Run via dekube-manager (downloads pinned versions)
-run_h2c() {
+run_dekube() {
     local workdir="$1"
     local from_dir="$2"
     local output_dir="$3"
@@ -159,8 +158,8 @@ run_h2c() {
     )
 }
 
-# Run with pre-installed .h2c/ (no downloads)
-run_h2c_local() {
+# Run with pre-installed .dekube/ (no downloads)
+run_dekube_local() {
     local workdir="$1"
     local from_dir="$2"
     local output_dir="$3"
@@ -368,21 +367,21 @@ run_regression() {
         # Ref: pinned versions via dekube-manager
         local ref_workdir="$TMP_BASE-ref/$combo"
         local ref_output="$ref_workdir/output"
-        write_h2c_yaml "$ref_workdir" "$REF_CORE" "${ref_ext_args[@]+"${ref_ext_args[@]}"}"
+        write_dekube_yaml "$ref_workdir" "$REF_CORE" "${ref_ext_args[@]+"${ref_ext_args[@]}"}"
 
         # Latest: install from main branches
         local latest_workdir="$TMP_BASE-latest/$combo"
         local latest_output="$latest_workdir/output"
-        write_h2c_yaml "$latest_workdir" "" "${latest_ext_args[@]+"${latest_ext_args[@]}"}"
+        write_dekube_yaml "$latest_workdir" "" "${latest_ext_args[@]+"${latest_ext_args[@]}"}"
         install_from_main "$latest_workdir" "${latest_ext_args[@]+"${latest_ext_args[@]}"}"
 
-        if ! run_h2c "$ref_workdir" "$MANIFESTS_DIR" "$ref_output" 2>&1; then
+        if ! run_dekube "$ref_workdir" "$MANIFESTS_DIR" "$ref_output" 2>&1; then
             echo "  $combo: ref run FAILED"
             has_diff=true
             continue
         fi
 
-        if ! run_h2c_local "$latest_workdir" "$MANIFESTS_DIR" "$latest_output" 2>&1; then
+        if ! run_dekube_local "$latest_workdir" "$MANIFESTS_DIR" "$latest_output" 2>&1; then
             echo "  $combo: latest run FAILED"
             has_diff=true
             continue
