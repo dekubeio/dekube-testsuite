@@ -5,7 +5,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 VERSIONS_FILE="$SCRIPT_DIR/dekube-known-versions.json"
 MANIFESTS_DIR="$SCRIPT_DIR/manifests"
 RAW_BASE="https://raw.githubusercontent.com"
-CORE_REPO="dekubeio/dekube-engine"
+CORE_REPO="dekubeio/helmfile2compose"
 MANAGER_URL="$RAW_BASE/dekubeio/dekube-manager/main/dekube-manager.py"
 REGISTRY_URL="$RAW_BASE/dekubeio/dekube-manager/main/extensions.json"
 TMP_BASE="/tmp/dekube-testsuite"
@@ -37,7 +37,7 @@ while [[ $# -gt 0 ]]; do
         --ext)         EXT_OVERRIDES+=("$2"); shift 2 ;;
         --keep)        KEEP=true; shift ;;
         -h|--help)
-            echo "Usage: $0 [--core vX.Y.Z] [--local-core /path/to/dekube.py] [--ext name==vX.Y.Z ...] [--perf N] [--keep]"
+            echo "Usage: $0 [--core vX.Y.Z] [--local-core /path/to/helmfile2compose.py] [--ext name==vX.Y.Z ...] [--perf N] [--keep]"
             exit 0 ;;
         *) echo "Unknown option: $1"; exit 1 ;;
     esac
@@ -53,7 +53,6 @@ fi
 # ---------------------------------------------------------------------------
 parse_versions_file() {
     REF_CORE=""
-    REF_DISTRIBUTION=""
     declare -gA REF_EXTENSIONS=()
     declare -ga EXCLUDE_EXT_ALL=()
 
@@ -62,7 +61,6 @@ import json, sys
 with open(sys.argv[1]) as f:
     ref = json.load(f)['reference']
 print(f'REF_CORE={ref[\"core\"]}')
-print(f'REF_DISTRIBUTION={ref.get(\"distribution\", \"engine\")}')
 for name, ver in ref.get('extensions', {}).items():
     print(f'REF_EXTENSIONS[{name}]={ver}')
 for name in ref.get('exclude-ext-all', []):
@@ -97,9 +95,9 @@ download_latest_core() {
     if [[ -n "$LOCAL_CORE" ]]; then
         cp "$LOCAL_CORE" "$CORE_LATEST_CACHE"
     elif [[ ! -f "$CORE_LATEST_CACHE" ]]; then
-        echo "Downloading latest engine release..."
+        echo "Downloading latest distribution release..."
         curl -fsSL -o "$CORE_LATEST_CACHE" \
-            "https://github.com/$CORE_REPO/releases/latest/download/dekube.py"
+            "https://github.com/$CORE_REPO/releases/latest/download/helmfile2compose.py"
     fi
 }
 
@@ -111,7 +109,7 @@ install_from_main() {
     local exts=("$@")
 
     mkdir -p "$workdir/.dekube/extensions"
-    cp "$CORE_LATEST_CACHE" "$workdir/.dekube/dekube.py"
+    cp "$CORE_LATEST_CACHE" "$workdir/.dekube/helmfile2compose.py"
 
     if [[ ${#exts[@]} -gt 0 ]]; then
         # Fetch registry once to resolve repo/file for each extension
@@ -127,18 +125,17 @@ install_from_main() {
     fi
 }
 
-write_dekube_yaml() {
+write_h2c_yaml() {
     local dir="$1"; shift
     local core_ver="$1"; shift
-    local distribution="$1"; shift
     local exts=("$@")
 
     mkdir -p "$dir"
     {
+        echo "helmfile2ComposeVersion: v1"
         echo "name: dekube-testsuite"
-        echo "distribution: $distribution"
         if [[ -n "$core_ver" ]]; then
-            echo "distribution_version: $core_ver"
+            echo "core_version: $core_ver"
         fi
         if [[ ${#exts[@]} -gt 0 ]]; then
             echo "depends:"
@@ -150,35 +147,29 @@ write_dekube_yaml() {
 }
 
 # Run via dekube-manager (downloads pinned versions)
-# Returns: 0 = success, 2 = no services, other = error
-run_dekube() {
+run_h2c() {
     local workdir="$1"
     local from_dir="$2"
     local output_dir="$3"
 
     mkdir -p "$output_dir"
-    local rc=0
     (
         cd "$workdir"
         python3 "$MANAGER_PATH" run --from-dir "$from_dir" --output-dir "$output_dir"
-    ) || rc=$?
-    return $rc
+    )
 }
 
-# Run with pre-installed .dekube/ (no downloads)
-# Returns: 0 = success, 2 = no services, other = error
-run_dekube_local() {
+# Run with pre-installed .h2c/ (no downloads)
+run_h2c_local() {
     local workdir="$1"
     local from_dir="$2"
     local output_dir="$3"
 
     mkdir -p "$output_dir"
-    local rc=0
     (
         cd "$workdir"
         python3 "$MANAGER_PATH" --no-reinstall run --from-dir "$from_dir" --output-dir "$output_dir"
-    ) || rc=$?
-    return $rc
+    )
 }
 
 _normalize_compose() {
@@ -235,7 +226,7 @@ download_core() {
         cp "$CORE_LATEST_CACHE" "$dest"
     else
         curl -fsSL -o "$dest" \
-            "https://github.com/$CORE_REPO/releases/download/$version/dekube.py"
+            "https://github.com/$CORE_REPO/releases/download/$version/helmfile2compose.py"
     fi
 }
 
@@ -305,7 +296,7 @@ run_regression() {
 
     parse_versions_file
 
-    echo "Reference: core=$REF_CORE (distribution=$REF_DISTRIBUTION)"
+    echo "Reference: core=$REF_CORE"
     for ext in "${!REF_EXTENSIONS[@]}"; do
         echo "  $ext=${REF_EXTENSIONS[$ext]}"
     done
@@ -377,38 +368,22 @@ run_regression() {
         # Ref: pinned versions via dekube-manager
         local ref_workdir="$TMP_BASE-ref/$combo"
         local ref_output="$ref_workdir/output"
-        write_dekube_yaml "$ref_workdir" "$REF_CORE" "$REF_DISTRIBUTION" "${ref_ext_args[@]+"${ref_ext_args[@]}"}"
+        write_h2c_yaml "$ref_workdir" "$REF_CORE" "${ref_ext_args[@]+"${ref_ext_args[@]}"}"
 
         # Latest: install from main branches
         local latest_workdir="$TMP_BASE-latest/$combo"
         local latest_output="$latest_workdir/output"
-        write_dekube_yaml "$latest_workdir" "" "$REF_DISTRIBUTION" "${latest_ext_args[@]+"${latest_ext_args[@]}"}"
+        write_h2c_yaml "$latest_workdir" "" "${latest_ext_args[@]+"${latest_ext_args[@]}"}"
         install_from_main "$latest_workdir" "${latest_ext_args[@]+"${latest_ext_args[@]}"}"
 
-        local ref_rc=0 latest_rc=0
-        run_dekube "$ref_workdir" "$MANIFESTS_DIR" "$ref_output" 2>&1 || ref_rc=$?
-        if [[ $ref_rc -ne 0 && $ref_rc -ne 2 ]]; then
-            echo "  $combo: ref run FAILED (exit $ref_rc)"
+        if ! run_h2c "$ref_workdir" "$MANIFESTS_DIR" "$ref_output" 2>&1; then
+            echo "  $combo: ref run FAILED"
             has_diff=true
             continue
         fi
 
-        run_dekube_local "$latest_workdir" "$MANIFESTS_DIR" "$latest_output" 2>&1 || latest_rc=$?
-        if [[ $latest_rc -ne 0 && $latest_rc -ne 2 ]]; then
-            echo "  $combo: latest run FAILED (exit $latest_rc)"
-            has_diff=true
-            continue
-        fi
-
-        # Both exited 2 = both produced no services — identical by definition
-        if [[ $ref_rc -eq 2 && $latest_rc -eq 2 ]]; then
-            echo "  $combo: no services (exit 2) — identical"
-            continue
-        fi
-
-        # One produced services, the other didn't
-        if [[ $ref_rc -ne "$latest_rc" ]]; then
-            echo "  $combo: exit code mismatch (ref=$ref_rc, latest=$latest_rc)"
+        if ! run_h2c_local "$latest_workdir" "$MANIFESTS_DIR" "$latest_output" 2>&1; then
+            echo "  $combo: latest run FAILED"
             has_diff=true
             continue
         fi
