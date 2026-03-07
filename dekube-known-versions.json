@@ -1,15 +1,24 @@
 {
   "reference": {
-    "core": "v3.1.0",
+    "core": "v1.2.1",
+    "distribution": "engine",
     "extensions": {
-      "cert-manager": "v0.3.0",
-      "keycloak": "v0.4.0",
-      "servicemonitor": "v0.3.0",
-      "trust-manager": "v0.3.0",
-      "nginx": "v0.3.0",
-      "traefik": "v0.3.0",
-      "flatten-internal-urls": "v0.3.0",
-      "bitnami": "v0.3.0"
+      "configmap-indexer": "v0.1.1",
+      "secret-indexer": "v0.1.1",
+      "pvc-indexer": "v0.1.2",
+      "service-indexer": "v0.1.1",
+      "workload": "v0.2.1",
+      "haproxy": "v0.1.1",
+      "caddy": "v0.1.1",
+      "fix-permissions": "v0.1.1",
+      "cert-manager": "v0.3.1",
+      "keycloak": "v0.4.1",
+      "servicemonitor": "v0.3.1",
+      "trust-manager": "v0.3.1",
+      "nginx": "v0.3.1",
+      "traefik": "v0.3.1",
+      "flatten-internal-urls": "v0.3.1",
+      "bitnami": "v0.3.1"
     },
     "exclude-ext-all": [
       "flatten-internal-urls"
