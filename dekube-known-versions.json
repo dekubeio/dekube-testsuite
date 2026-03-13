@@ -10,6 +10,9 @@
       "traefik": "v0.3.2",
       "flatten-internal-urls": "v0.3.2",
       "bitnami": "v0.3.2"
-    }
+    },
+    "exclude-ext-all": [
+      "flatten-internal-urls"
+    ]
   }
 }
