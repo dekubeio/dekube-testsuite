@@ -243,3 +243,91 @@ spec:
           env:
             - name: VAULT_ADDR
               value: "http://vault:8200"
+---
+# With exec probe (liveness)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cache-warmer
+  namespace: default
+  labels:
+    app: cache-warmer
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cache-warmer
+  template:
+    metadata:
+      labels:
+        app: cache-warmer
+    spec:
+      containers:
+        - name: warmer
+          image: myregistry/cache-warmer:v1.0.0
+          livenessProbe:
+            exec:
+              command: ["cat", "/tmp/healthy"]
+            initialDelaySeconds: 10
+            periodSeconds: 30
+            failureThreshold: 3
+            timeoutSeconds: 5
+---
+# With tcpSocket probe (readiness)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tcp-service
+  namespace: default
+  labels:
+    app: tcp-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: tcp-service
+  template:
+    metadata:
+      labels:
+        app: tcp-service
+    spec:
+      containers:
+        - name: server
+          image: myregistry/tcp-server:v2.0.0
+          ports:
+            - containerPort: 5000
+          readinessProbe:
+            tcpSocket:
+              port: 5000
+            periodSeconds: 10
+            timeoutSeconds: 3
+---
+# With binaryData configmap mount
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: binary-mount-test
+  namespace: default
+  labels:
+    app: binary-mount
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: binary-mount
+  template:
+    metadata:
+      labels:
+        app: binary-mount
+    spec:
+      containers:
+        - name: app
+          image: myregistry/binary-app:v1.0.0
+          volumeMounts:
+            - name: binary-data
+              mountPath: /app/assets
+              readOnly: true
+      volumes:
+        - name: binary-data
+          configMap:
+            name: binary-config

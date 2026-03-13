@@ -303,7 +303,9 @@ run_regression() {
 
     download_manager
     download_latest_core
-    _CLEANUP_DIRS+=("$TMP_BASE" "$TMP_BASE-ref" "$TMP_BASE-latest")
+    if ! $KEEP; then
+        _CLEANUP_DIRS+=("$TMP_BASE" "$TMP_BASE-ref" "$TMP_BASE-latest")
+    fi
 
     local ext_names=()
     for ext in "${!REF_EXTENSIONS[@]}"; do
