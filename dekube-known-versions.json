@@ -1,15 +1,15 @@
 {
   "reference": {
-    "core": "v3.2.1",
+    "core": "v3.2.3",
     "extensions": {
       "cert-manager": "v0.3.4",
-      "keycloak": "v0.4.4",
-      "servicemonitor": "v0.3.4",
+      "keycloak": "v0.4.5",
+      "servicemonitor": "v0.3.5",
       "trust-manager": "v0.3.2",
       "nginx": "v0.4.2",
       "traefik": "v0.3.3",
-      "flatten-internal-urls": "v0.3.3",
-      "bitnami": "v0.3.2"
+      "flatten-internal-urls": "v0.3.4",
+      "bitnami": "v0.3.3"
     },
     "exclude-ext-all": [
       "flatten-internal-urls"
