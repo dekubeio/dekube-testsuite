@@ -1,0 +1,31 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bugdnshl
+spec:
+  selector:
+    matchLabels: {app: bugdnshl}
+  template:
+    metadata:
+      labels: {app: bugdnshl}
+    spec:
+      containers:
+        - name: app
+          image: busybox:1.36
+          command: ["sh", "-c", "sleep 3600"]
+          env:
+            # Headless-service pod FQDN (StatefulSet ordinal + headless svc name).
+            # Today: rewrite only drops ".data.svc.cluster.local", leaving the pod
+            # ordinal prefix behind -> "bugdnshl-pg-0.bugdnshl-pg-hl". Fix should
+            # collapse the whole pod FQDN to the headless service name alone.
+            - name: PG_URL
+              value: postgres://bugdnshl-pg-0.bugdnshl-pg-hl.data.svc.cluster.local:5432/app
+            - name: PG_SHORT
+              value: bugdnshl-pg-1.bugdnshl-pg-hl.data.svc:5432
+            # 4 labels before .svc (extra opaque prefix, not a real headless-pod
+            # pattern) -> must be left alone by the fix, same as today.
+            - name: DEEP
+              value: x.bugdnshl-pg-0.bugdnshl-pg-hl.data.svc.cluster.local
+            # Plain Service form (no pod ordinal) -> must keep working after the fix.
+            - name: SVC_URL
+              value: http://bugdnshl-api.data.svc:8080
