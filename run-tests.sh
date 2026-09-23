@@ -110,7 +110,11 @@ download_latest_core() {
     mkdir -p "$TMP_BASE"
     if [[ -n "$LOCAL_CORE" ]]; then
         cp "$LOCAL_CORE" "$CORE_LATEST_CACHE"
-    elif [[ ! -f "$CORE_LATEST_CACHE" ]]; then
+    else
+        # Always re-fetch: called at most once per invocation (before the combo loop, or
+        # once in perf mode), so there's no within-run reuse to lose here. Skipping the
+        # download when $CORE_LATEST_CACHE already existed used to mean a --keep run's
+        # leftover file got treated as "latest" forever by every later plain run.
         echo "Downloading latest distribution release..."
         curl -fsSL -o "$CORE_LATEST_CACHE" \
             "https://github.com/$CORE_REPO/releases/latest/download/helmfile2compose.py"
@@ -389,11 +393,21 @@ run_regression() {
         # Ref: pinned versions via dekube-manager
         local ref_workdir="$TMP_BASE-ref/$combo"
         local ref_output="$ref_workdir/output"
-        write_dekube_yaml "$ref_workdir" "$REF_CORE" "${ref_ext_args[@]+"${ref_ext_args[@]}"}"
 
         # Latest: install from main branches
         local latest_workdir="$TMP_BASE-latest/$combo"
         local latest_output="$latest_workdir/output"
+
+        # Wipe this combo's outputs up front: a previous --keep run can leave a
+        # dekube.yaml/secrets/ behind here that would otherwise leak into this run
+        # (the "ref FAILED, latest OK" branch below never reaches diff_outputs, which is
+        # the only other place dekube.yaml gets removed; and the secrets/ pre-seed below
+        # does `cp -a` into whatever is already there). --keep still keeps the fresh
+        # outputs this run produces — it just stops them starting out stale.
+        rm -rf "$ref_output" "$latest_output"
+
+        write_dekube_yaml "$ref_workdir" "$REF_CORE" "${ref_ext_args[@]+"${ref_ext_args[@]}"}"
+
         write_dekube_yaml "$latest_workdir" "" "${latest_ext_args[@]+"${latest_ext_args[@]}"}"
         install_from_main "$latest_workdir" "${latest_ext_args[@]+"${latest_ext_args[@]}"}"
 
