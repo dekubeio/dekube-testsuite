@@ -1,0 +1,17 @@
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: bugnullcert-selfsigned
+spec:
+  selfSigned: {}
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: bugnullcert
+spec:
+  secretName: bugnullcert-tls
+  duration: null
+  privateKey: {algorithm: null, size: null}
+  dnsNames: [bugnullcert.example.com]
+  issuerRef: {name: bugnullcert-selfsigned, kind: Issuer}

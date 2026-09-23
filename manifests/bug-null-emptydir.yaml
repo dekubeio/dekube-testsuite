@@ -1,0 +1,25 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bugnullemptydir
+spec:
+  selector:
+    matchLabels: {app: bugnullemptydir}
+  template:
+    metadata:
+      labels: {app: bugnullemptydir}
+    spec:
+      volumes:
+        - null
+        - name: scratch
+          emptyDir: {}
+      containers:
+        - name: app
+          image: busybox:1.36
+          volumeMounts:
+            - null
+            - {name: scratch, mountPath: /scratch}
+        - name: helper
+          image: busybox:1.36
+          volumeMounts:
+            - {name: scratch, mountPath: /scratch}
