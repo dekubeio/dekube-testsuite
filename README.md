@@ -62,7 +62,10 @@ A diff **is expected** when things change intentionally between versions. The ou
 - `ext-<name>` diff = change in that extension or its interaction with core
 - `ext-all` diff = interaction between all extensions
 - `ref run FAILED, latest OK` = a crash fixed in latest, diff unavailable for that combo
+- `ref run FAILED, latest FAILED` = both sides crash for that combo — check the latest output before assuming it's the same bug
 - `*.crt` / `*.key` files are never diffed: cert-manager regenerates key material on every run, so their content is noise, not drift
+
+Before each combo runs, the latest side's output directory is pre-seeded with the reference run's `secrets/`, so idempotent generators (e.g. cnpg's superuser password) produce identical values on both sides instead of a spurious diff. CBA: a latest run that stops writing a secret the reference wrote is invisible under this scheme.
 
 ## Reference versions
 
