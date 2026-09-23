@@ -89,7 +89,14 @@ for name in ref.get('exclude-ext-all', []):
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
-CORE_LATEST_CACHE="$TMP_BASE/core-latest.py"
+# Distinct cache path when --local-core is set, so a --local-core copy can never survive
+# (e.g. across a --keep run) and be mistaken by a later plain run for the downloaded release
+# cache. Within a single run, this still caches the downloaded release across combos.
+if [[ -n "$LOCAL_CORE" ]]; then
+    CORE_LATEST_CACHE="$TMP_BASE/core-local.py"
+else
+    CORE_LATEST_CACHE="$TMP_BASE/core-latest.py"
+fi
 
 download_manager() {
     mkdir -p "$TMP_BASE"
@@ -398,6 +405,9 @@ run_regression() {
         # Pre-seed latest with ref's secrets/ so idempotent generators (cnpg app/superuser
         # passwords) reuse the same values instead of generating new random ones, which would
         # otherwise look like drift even though nothing actually changed.
+        # CBA: blind spot — if latest stops writing a secrets/ file that ref wrote, the
+        # pre-seeded copy hides it (looks identical instead of missing). Upgrade path: diff
+        # only the files latest itself wrote, not the whole pre-seeded directory.
         if $ref_ok && [[ -d "$ref_output/secrets" ]]; then
             mkdir -p "$latest_output" && cp -a "$ref_output/secrets" "$latest_output/"
         fi

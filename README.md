@@ -18,6 +18,9 @@ Compares dekube output between a **pinned reference version** and the **latest r
 
 # Test unreleased local work (latest side only; ref stays pinned)
 ./run-tests.sh --local-core /path/to/helmfile2compose.py --local-ext nginx=/path/to/nginx_rewriter.py
+# --local-ext replaces only the named extension. An extension it depends on (e.g. trust-manager
+# pulling in cert-manager) is still resolved and fetched by dekube-manager at its latest
+# released tag — pass --local-ext for that dependency too if you need it overridden as well.
 
 # Performance test (run locally, not in CI)
 ./run-tests.sh --perf 5         # fast
