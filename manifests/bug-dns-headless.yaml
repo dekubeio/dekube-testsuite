@@ -23,7 +23,9 @@ spec:
             - name: PG_SHORT
               value: bugdnshl-pg-1.bugdnshl-pg-hl.data.svc:5432
             # 4 labels before .svc (extra opaque prefix, not a real headless-pod
-            # pattern) -> must be left alone by the fix, same as today.
+            # pattern) -> must be left alone by the fix. Before the fix this was
+            # partially rewritten to "x.bugdnshl-pg-0.bugdnshl-pg-hl" (mangled,
+            # not untouched) -- the fix's left-boundary check blocks it outright.
             - name: DEEP
               value: x.bugdnshl-pg-0.bugdnshl-pg-hl.data.svc.cluster.local
             # Plain Service form (no pod ordinal) -> must keep working after the fix.
