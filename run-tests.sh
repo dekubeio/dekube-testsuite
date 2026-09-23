@@ -395,6 +395,13 @@ run_regression() {
             ref_ok=false
         fi
 
+        # Pre-seed latest with ref's secrets/ so idempotent generators (cnpg app/superuser
+        # passwords) reuse the same values instead of generating new random ones, which would
+        # otherwise look like drift even though nothing actually changed.
+        if $ref_ok && [[ -d "$ref_output/secrets" ]]; then
+            mkdir -p "$latest_output" && cp -a "$ref_output/secrets" "$latest_output/"
+        fi
+
         if ! run_dekube_local "$latest_workdir" "$MANIFESTS_DIR" "$latest_output" 2>&1; then
             if $ref_ok; then
                 echo "  $combo: latest run FAILED"
