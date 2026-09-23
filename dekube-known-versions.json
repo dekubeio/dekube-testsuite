@@ -13,8 +13,7 @@
       "cnpg": "v0.2.0"
     },
     "exclude-ext-all": [
-      "flatten-internal-urls",
-      "cnpg"
+      "flatten-internal-urls"
     ]
   }
 }

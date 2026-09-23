@@ -62,6 +62,7 @@ A diff **is expected** when things change intentionally between versions. The ou
 - `ext-<name>` diff = change in that extension or its interaction with core
 - `ext-all` diff = interaction between all extensions
 - `ref run FAILED, latest OK` = a crash fixed in latest, diff unavailable for that combo
+- `*.crt` / `*.key` files are never diffed: cert-manager regenerates key material on every run, so their content is noise, not drift
 
 ## Reference versions
 
@@ -87,7 +88,7 @@ Edit `dekube-known-versions.json` to bump the pinned reference:
 }
 ```
 
-Extensions listed here are tested individually; unlisted are skipped. Extensions in `exclude-ext-all` are excluded from the combined `ext-all` combo (e.g. due to incompatibilities declared in the registry). `cnpg` is excluded because its `Cluster`s inject synthetic `Certificate`s that cert-manager regenerates (non-idempotently) on every run; it's already drift-tested alone in `ext-cnpg`, where cert-manager isn't loaded.
+Extensions listed here are tested individually; unlisted are skipped. Extensions in `exclude-ext-all` are excluded from the combined `ext-all` combo (e.g. due to incompatibilities declared in the registry).
 
 **Future**: `exclude-ext-all` is a stopgap. The plan is to replace it with explicit `ext-sets` — named combos of extensions to test together.
 

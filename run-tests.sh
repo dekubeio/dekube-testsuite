@@ -223,7 +223,9 @@ diff_outputs() {
         done
     done
 
-    if diff -ru "$dir_a" "$dir_b" > "$diff_file" 2>&1; then
+    # PEM key material (cert-manager certs/keys) is freshly random on every run:
+    # its content is not drift. Structure (compose.yml, mounts) is still compared.
+    if diff -ru -x '*.crt' -x '*.key' "$dir_a" "$dir_b" > "$diff_file" 2>&1; then
         echo "  $label: identical"
         return 0
     else
