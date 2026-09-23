@@ -1,0 +1,83 @@
+# Bitnami Redis with a password containing $ — regression fixture for the
+# dekube-transform-bitnami $-escaping bug (redis --requirepass raw in `command`).
+apiVersion: v1
+kind: Secret
+metadata:
+  name: bugbitnami-redis
+  namespace: default
+type: Opaque
+data:
+  # base64("re$dis$$x")
+  redis-password: cmUkZGlzJCR4
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: bugbitnami-redis-master
+  namespace: default
+  labels:
+    app: bugbitnami-redis
+spec:
+  serviceName: bugbitnami-redis-headless
+  replicas: 1
+  selector:
+    matchLabels:
+      app: bugbitnami-redis
+  template:
+    metadata:
+      labels:
+        app: bugbitnami-redis
+    spec:
+      containers:
+        - name: redis
+          image: docker.io/bitnami/redis:7.2.5-debian-12-r4
+          ports:
+            - containerPort: 6379
+              name: redis
+          env:
+            - name: BITNAMI_DEBUG
+              value: "false"
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: bugbitnami-redis
+                  key: redis-password
+          volumeMounts:
+            - name: redis-data
+              mountPath: /bitnami/redis/data
+  volumeClaimTemplates:
+    - metadata:
+        name: redis-data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 2Gi
+---
+# Client that authenticates to bugbitnami-redis-master using the same secret.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bugbitnami-client
+  namespace: default
+  labels:
+    app: bugbitnami-client
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: bugbitnami-client
+  template:
+    metadata:
+      labels:
+        app: bugbitnami-client
+    spec:
+      containers:
+        - name: bugbitnami-client
+          image: bugbitnami-client:1.0
+          env:
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: bugbitnami-redis
+                  key: redis-password
