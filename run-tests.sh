@@ -28,6 +28,7 @@ KEEP=false
 CORE_OVERRIDE=""
 LOCAL_CORE=""
 declare -a EXT_OVERRIDES=()
+declare -A LOCAL_EXTS=()
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -35,9 +36,10 @@ while [[ $# -gt 0 ]]; do
         --core)        CORE_OVERRIDE="$2"; shift 2 ;;
         --local-core)  LOCAL_CORE="$2"; shift 2 ;;
         --ext)         EXT_OVERRIDES+=("$2"); shift 2 ;;
+        --local-ext)   LOCAL_EXTS["${2%%=*}"]="${2#*=}"; shift 2 ;;
         --keep)        KEEP=true; shift ;;
         -h|--help)
-            echo "Usage: $0 [--core vX.Y.Z] [--local-core /path/to/helmfile2compose.py] [--ext name==vX.Y.Z ...] [--perf N] [--keep]"
+            echo "Usage: $0 [--core vX.Y.Z] [--local-core /path/to/helmfile2compose.py] [--ext name==vX.Y.Z ...] [--local-ext name=/path/file.py ...] [--perf N] [--keep]"
             exit 0 ;;
         *) echo "Unknown option: $1"; exit 1 ;;
     esac
@@ -47,6 +49,13 @@ if [[ -n "$LOCAL_CORE" && ! -f "$LOCAL_CORE" ]]; then
     echo "Error: local core not found: $LOCAL_CORE"
     exit 1
 fi
+
+for _le in "${!LOCAL_EXTS[@]}"; do
+    if [[ ! -f "${LOCAL_EXTS[$_le]}" ]]; then
+        echo "Error: local extension not found: $_le=${LOCAL_EXTS[$_le]}"
+        exit 1
+    fi
+done
 
 # ---------------------------------------------------------------------------
 # Parse versions file (JSON)
@@ -119,8 +128,12 @@ install_from_main() {
             local repo file
             repo=$(printf '%s' "$registry" | python3 -c "import json,sys; print(json.load(sys.stdin)['extensions']['$ext']['repo'])")
             file=$(printf '%s' "$registry" | python3 -c "import json,sys; print(json.load(sys.stdin)['extensions']['$ext']['file'])")
-            curl -fsSL "$RAW_BASE/$repo/main/$file" \
-                -o "$workdir/.dekube/extensions/$file"
+            if [[ -n "${LOCAL_EXTS[$ext]:-}" ]]; then
+                cp "${LOCAL_EXTS[$ext]}" "$workdir/.dekube/extensions/$file"
+            else
+                curl -fsSL "$RAW_BASE/$repo/main/$file" \
+                    -o "$workdir/.dekube/extensions/$file"
+            fi
         done
     fi
 }
@@ -377,14 +390,24 @@ run_regression() {
         write_dekube_yaml "$latest_workdir" "" "${latest_ext_args[@]+"${latest_ext_args[@]}"}"
         install_from_main "$latest_workdir" "${latest_ext_args[@]+"${latest_ext_args[@]}"}"
 
+        local ref_ok=true
         if ! run_dekube "$ref_workdir" "$MANIFESTS_DIR" "$ref_output" 2>&1; then
-            echo "  $combo: ref run FAILED"
+            ref_ok=false
+        fi
+
+        if ! run_dekube_local "$latest_workdir" "$MANIFESTS_DIR" "$latest_output" 2>&1; then
+            if $ref_ok; then
+                echo "  $combo: latest run FAILED"
+            else
+                echo "  $combo: ref run FAILED, latest FAILED"
+            fi
             has_diff=true
             continue
         fi
 
-        if ! run_dekube_local "$latest_workdir" "$MANIFESTS_DIR" "$latest_output" 2>&1; then
-            echo "  $combo: latest run FAILED"
+        if ! $ref_ok; then
+            # Crash fixed in latest (or ref broken): no diff possible for this combo
+            echo "  $combo: ref run FAILED, latest OK"
             has_diff=true
             continue
         fi

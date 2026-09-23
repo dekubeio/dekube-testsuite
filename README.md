@@ -16,6 +16,9 @@ Compares dekube output between a **pinned reference version** and the **latest r
 # Override reference extension version
 ./run-tests.sh --ext keycloak==v0.1.0
 
+# Test unreleased local work (latest side only; ref stays pinned)
+./run-tests.sh --local-core /path/to/helmfile2compose.py --local-ext nginx=/path/to/nginx_rewriter.py
+
 # Performance test (run locally, not in CI)
 ./run-tests.sh --perf 5         # fast
 ./run-tests.sh --perf 15        # notable
@@ -55,6 +58,7 @@ A diff **is expected** when things change intentionally between versions. The ou
 - `core-only` diff = pure dekube-engine behavioral change
 - `ext-<name>` diff = change in that extension or its interaction with core
 - `ext-all` diff = interaction between all extensions
+- `ref run FAILED, latest OK` = a crash fixed in latest, diff unavailable for that combo
 
 ## Reference versions
 

@@ -9,7 +9,8 @@
       "nginx": "v0.4.2",
       "traefik": "v0.3.3",
       "flatten-internal-urls": "v0.3.4",
-      "bitnami": "v0.3.3"
+      "bitnami": "v0.3.3",
+      "cnpg": "v0.1.2"
     },
     "exclude-ext-all": [
       "flatten-internal-urls"
