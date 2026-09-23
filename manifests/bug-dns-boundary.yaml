@@ -1,0 +1,19 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bugdns
+spec:
+  selector:
+    matchLabels: {app: bugdns}
+  template:
+    metadata:
+      labels: {app: bugdns}
+    spec:
+      containers:
+        - name: app
+          image: busybox:1.36
+          env:
+            - name: EXT_URL
+              value: https://bugdns-api.data.svc-proxy.example.com/v1
+            - name: INT_URL
+              value: http://bugdns-db.data.svc.cluster.local:5432

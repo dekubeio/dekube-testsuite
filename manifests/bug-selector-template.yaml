@@ -1,0 +1,26 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bugsel
+spec:
+  selector:
+    matchLabels: {app: bugsel}
+  template:
+    metadata:
+      labels: {app: bugsel}
+    spec:
+      containers:
+        - name: web
+          image: nginx:1.27
+          ports:
+            - {name: http, containerPort: 8080}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: bugsel-svc
+spec:
+  type: NodePort
+  selector: {app: bugsel}
+  ports:
+    - {port: 80, targetPort: http, nodePort: 30180}

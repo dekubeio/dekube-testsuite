@@ -1,0 +1,37 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: bugdollar-secret
+type: Opaque
+stringData:
+  password: 'pa$word$$x'
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: bugdollar-cm
+data:
+  GREETING: 'hello $USER'
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bugdollar
+spec:
+  selector:
+    matchLabels: {app: bugdollar}
+  template:
+    metadata:
+      labels: {app: bugdollar}
+    spec:
+      containers:
+        - name: app
+          image: busybox:1.36
+          env:
+            - name: PGPASS
+              valueFrom:
+                secretKeyRef: {name: bugdollar-secret, key: password}
+            - name: LITERAL
+              value: 'cost: $5'
+          envFrom:
+            - configMapRef: {name: bugdollar-cm}

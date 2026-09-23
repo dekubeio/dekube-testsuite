@@ -1,0 +1,39 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: bugcnpg
+  namespace: data
+spec:
+  instances: 1
+  imageName: ghcr.io/cloudnative-pg/postgresql:16.4
+  storage: {size: 1Gi}
+  bootstrap:
+    initdb:
+      database: keycloak
+      owner: keycloak
+      postInitSQL:
+        - CREATE EXTENSION IF NOT EXISTS pg_stat_statements
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: bugcnpg-byo-creds
+  namespace: data
+type: kubernetes.io/basic-auth
+stringData:
+  username: byo
+  password: "it's$ecret"
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: bugcnpg-byo
+  namespace: data
+spec:
+  instances: 1
+  imageName: ghcr.io/cloudnative-pg/postgresql:16.4
+  storage: {size: 1Gi}
+  bootstrap:
+    initdb:
+      database: byodb
+      secret: {name: bugcnpg-byo-creds}

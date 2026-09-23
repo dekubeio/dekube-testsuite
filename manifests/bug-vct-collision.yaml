@@ -1,0 +1,53 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: bugvct-pg
+spec:
+  serviceName: bugvct-pg
+  selector:
+    matchLabels: {app: bugvct-pg}
+  template:
+    metadata:
+      labels: {app: bugvct-pg}
+    spec:
+      securityContext: {runAsUser: 999}
+      initContainers:
+        - name: prep
+          image: busybox:1.36
+          command: ["sh", "-c", "ls /var/lib/postgresql/data"]
+          volumeMounts:
+            - {name: data, mountPath: /var/lib/postgresql/data}
+      containers:
+        - name: pg
+          image: postgres:16-alpine
+          volumeMounts:
+            - {name: data, mountPath: /var/lib/postgresql/data}
+  volumeClaimTemplates:
+    - metadata: {name: data}
+      spec:
+        accessModes: [ReadWriteOnce]
+        resources: {requests: {storage: 1Gi}}
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: bugvct-maria
+spec:
+  serviceName: bugvct-maria
+  selector:
+    matchLabels: {app: bugvct-maria}
+  template:
+    metadata:
+      labels: {app: bugvct-maria}
+    spec:
+      securityContext: {runAsUser: 1001}
+      containers:
+        - name: maria
+          image: mariadb:11
+          volumeMounts:
+            - {name: data, mountPath: /var/lib/mysql}
+  volumeClaimTemplates:
+    - metadata: {name: data}
+      spec:
+        accessModes: [ReadWriteOnce]
+        resources: {requests: {storage: 1Gi}}
