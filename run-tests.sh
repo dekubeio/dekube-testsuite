@@ -10,6 +10,8 @@ MANAGER_URL="$RAW_BASE/dekubeio/dekube-manager/main/dekube-manager.py"
 REGISTRY_URL="$RAW_BASE/dekubeio/dekube-manager/main/extensions.json"
 TMP_BASE="/tmp/dekube-testsuite"
 MANAGER_PATH="$TMP_BASE/dekube-manager.py"
+ENGINE_REPO="dekubeio/dekube-engine"
+DISTRIBUTION_JSON_URL="$RAW_BASE/$CORE_REPO/main/distribution.json"
 
 # curl wrapper: retry on any error (including a mid-transfer network reset),
 # not just the transient HTTP codes --retry alone covers. Safe with -o (curl
@@ -35,6 +37,7 @@ PERF_N=""
 KEEP=false
 CORE_OVERRIDE=""
 LOCAL_CORE=""
+LATEST_MAIN=false
 declare -a EXT_OVERRIDES=()
 declare -A LOCAL_EXTS=()
 
@@ -45,9 +48,17 @@ while [[ $# -gt 0 ]]; do
         --local-core)  LOCAL_CORE="$2"; shift 2 ;;
         --ext)         EXT_OVERRIDES+=("$2"); shift 2 ;;
         --local-ext)   LOCAL_EXTS["${2%%=*}"]="${2#*=}"; shift 2 ;;
+        --latest-main) LATEST_MAIN=true; shift ;;
         --keep)        KEEP=true; shift ;;
         -h|--help)
-            echo "Usage: $0 [--core vX.Y.Z] [--local-core /path/to/helmfile2compose.py] [--ext name==vX.Y.Z ...] [--local-ext name=/path/file.py ...] [--perf N] [--keep]"
+            echo "Usage: $0 [--core vX.Y.Z] [--local-core /path/to/helmfile2compose.py] [--ext name==vX.Y.Z ...] [--local-ext name=/path/file.py ...] [--latest-main] [--perf N] [--keep]"
+            echo ""
+            echo "  --latest-main   'latest' side's built-in/bundled extensions (indexers, workload,"
+            echo "                  haproxy, caddy, emptydir, fix-permissions) come from their main"
+            echo "                  branch instead of the engine's latest release. The engine core"
+            echo "                  itself still comes from the latest dekube-engine release --"
+            echo "                  there is no pre-built single-file 'engine from main' artifact to"
+            echo "                  fetch (only release assets are published). Ignored with --local-core."
             exit 0 ;;
         *) echo "Unknown option: $1"; exit 1 ;;
     esac
@@ -102,6 +113,8 @@ for name in ref.get('exclude-ext-all', []):
 # cache. Within a single run, this still caches the downloaded release across combos.
 if [[ -n "$LOCAL_CORE" ]]; then
     CORE_LATEST_CACHE="$TMP_BASE/core-local.py"
+elif $LATEST_MAIN; then
+    CORE_LATEST_CACHE="$TMP_BASE/core-latest-main.py"
 else
     CORE_LATEST_CACHE="$TMP_BASE/core-latest.py"
 fi
@@ -132,10 +145,46 @@ registry_field() {
         "$REGISTRY_CACHE" "$ext" "$field"
 }
 
+# Build a "core from main" distribution: the engine body is still the latest
+# dekube-engine RELEASE (no pre-built single-file main-branch artifact
+# exists — main only ships source across dekube-engine's src/ tree, and only
+# a tagged release publishes the built dekube.py asset build-distribution.py's
+# CI mode fetches). What DOES come from main here: the built-in/bundled
+# extensions (indexers, workload, haproxy, caddy, emptydir, fix-permissions),
+# refolded on top of that release engine via build-distribution.py.
+build_latest_main_core() {
+    local dest="$1"
+    local build_dir="$TMP_BASE/latest-main-build"
+    rm -rf "$build_dir"
+    mkdir -p "$build_dir/extensions"
+
+    echo "Building 'latest-main' core (engine: latest release, built-in extensions: main)..."
+    curl_retry -fsSL "$RAW_BASE/$ENGINE_REPO/main/build-distribution.py" \
+        -o "$build_dir/build-distribution.py"
+
+    local dist_json="$build_dir/distribution.json"
+    curl_retry -fsSL "$DISTRIBUTION_JSON_URL" -o "$dist_json"
+    local -a bundled_exts
+    mapfile -t bundled_exts < <(python3 -c "import json,sys; print('\n'.join(json.load(open(sys.argv[1]))['extensions']))" "$dist_json")
+
+    fetch_registry
+    for ext in "${bundled_exts[@]}"; do
+        local repo file
+        repo=$(registry_field "$ext" repo)
+        file=$(registry_field "$ext" file)
+        curl_retry -fsSL "$RAW_BASE/$repo/main/$file" -o "$build_dir/extensions/$file"
+    done
+
+    (cd "$build_dir" && python3 build-distribution.py helmfile2compose --extensions-dir extensions)
+    cp "$build_dir/helmfile2compose.py" "$dest"
+}
+
 download_latest_core() {
     mkdir -p "$TMP_BASE"
     if [[ -n "$LOCAL_CORE" ]]; then
         cp "$LOCAL_CORE" "$CORE_LATEST_CACHE"
+    elif $LATEST_MAIN; then
+        build_latest_main_core "$CORE_LATEST_CACHE"
     else
         # Always re-fetch: called at most once per invocation (before the combo loop, or
         # once in perf mode), so there's no within-run reuse to lose here. Skipping the

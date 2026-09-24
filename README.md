@@ -22,6 +22,15 @@ Compares dekube output between a **pinned reference version** and the **latest r
 # pulling in cert-manager) is still resolved and fetched by dekube-manager at its latest
 # released tag — pass --local-ext for that dependency too if you need it overridden as well.
 
+# Test bleeding-edge main branches instead of the latest release (latest side only)
+./run-tests.sh --latest-main
+# The dependency extensions (keycloak, nginx, cert-manager, ...) already come from main by
+# default. --latest-main additionally takes the built-in/bundled extensions (indexers,
+# workload, haproxy, caddy, emptydir, fix-permissions) from main instead of from the engine's
+# latest release. The engine core logic itself still comes from the latest dekube-engine
+# release: there's no pre-built single-file "engine from main" artifact to fetch (dekube-engine
+# only publishes a built dekube.py on tagged releases). Ignored when combined with --local-core.
+
 # Performance test (run locally, not in CI)
 ./run-tests.sh --perf 5         # fast
 ./run-tests.sh --perf 15        # notable
