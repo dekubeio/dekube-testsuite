@@ -17,6 +17,11 @@ DISTRIBUTION_JSON_URL="$RAW_BASE/$CORE_REPO/main/distribution.json"
 # not just the transient HTTP codes --retry alone covers. Safe with -o (curl
 # discards the partial file before retrying); never use with `>`/`|`/`$()`
 # redirection — retries would then duplicate output instead of replacing it.
+# Requires curl >= 7.71.0 (--retry-all-errors, added that version). Older
+# curl (e.g. RHEL7/8 base images ship ~7.29/7.61) fails hard on startup with
+# "option --retry-all-errors: is unknown" instead of the old plain-curl
+# behavior — GitHub's ubuntu-latest runners and any curl from the last few
+# years are well past this floor.
 curl_retry() {
     curl --retry 3 --retry-all-errors --retry-delay 2 "$@"
 }

@@ -41,7 +41,10 @@ Compares dekube output between a **pinned reference version** and the **latest r
 ## What it does
 
 Every download retries automatically (`curl --retry 3 --retry-all-errors`) — a single
-mid-transfer network reset no longer aborts the whole run.
+mid-transfer network reset no longer aborts the whole run. Requires **curl >= 7.71.0**
+(`--retry-all-errors`, added that version) — fine on any current OS/CI image, but an old
+system curl (RHEL7/8 base images ship ~7.29/7.61) will fail hard with `option
+--retry-all-errors: is unknown` instead of the pre-retry behavior.
 
 ### Regression
 
