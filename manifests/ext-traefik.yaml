@@ -1,13 +1,19 @@
-# Traefik ingress rewriter — standard Ingress + traefik annotations
-# (router.tls, router.middlewares, router.entrypoints). NOTE: Traefik CRDs
-# (IngressRoute, Middleware) are explicitly NOT supported by this rewriter
-# (README: "POC/Untested" — CRDs need a full converter, not a rewriter),
-# so this fixture exercises the annotated-Ingress path rather than a CRD.
+# Traefik ingress rewriter — the extension's real behaviors:
+# - service.serversscheme (on the Service, not the Ingress) → HTTPS upstream
+# - router.middlewares → StripPrefix resolved from a Middleware CR present in
+#   the manifests; only the /app path matches the stripped prefix, /status
+#   (plain path, no match) is left untouched
+# router.tls / router.entrypoints are kept for documentation only: per the
+# extension's own docstring, router.tls is router-side TLS termination (not a
+# backend setting, ignored here) and router.entrypoints is informational —
+# both are real no-ops in this converter and are NOT exercised as coverage.
 apiVersion: v1
 kind: Service
 metadata:
   name: exttfk-web
   namespace: default
+  annotations:
+    traefik.ingress.kubernetes.io/service.serversscheme: "https"
 spec:
   selector:
     app: exttfk-web
@@ -15,6 +21,16 @@ spec:
     - name: http
       port: 8080
       targetPort: 8080
+---
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: strip-app
+  namespace: default
+spec:
+  stripPrefix:
+    prefixes:
+      - /app
 ---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
@@ -24,7 +40,7 @@ metadata:
   annotations:
     kubernetes.io/ingress.class: traefik
     traefik.ingress.kubernetes.io/router.tls: "true"
-    traefik.ingress.kubernetes.io/router.middlewares: "default-strip-prefix@kubernetescrd"
+    traefik.ingress.kubernetes.io/router.middlewares: "default-strip-app@kubernetescrd"
     traefik.ingress.kubernetes.io/router.entrypoints: "websecure"
 spec:
   rules:
@@ -32,6 +48,13 @@ spec:
       http:
         paths:
           - path: /app
+            pathType: Prefix
+            backend:
+              service:
+                name: exttfk-web
+                port:
+                  number: 8080
+          - path: /status
             pathType: Prefix
             backend:
               service:
