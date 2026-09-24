@@ -111,6 +111,14 @@ Extensions listed here are tested individually; unlisted are skipped. Extensions
 
 The GitHub Actions workflow runs regression only (weekly + on push to test files). Performance tests are manual — run them on your own machine.
 
+GitHub automatically disables a scheduled workflow's cron trigger after 60 days without
+repository activity (`workflow_dispatch` and the push trigger still work). If the weekly run
+shows as disabled for that reason, re-enable it with:
+
+```bash
+gh workflow enable regression.yml -R dekubeio/dekube-testsuite
+```
+
 ## Structure
 
 ```
