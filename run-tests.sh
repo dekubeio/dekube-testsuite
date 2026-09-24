@@ -120,11 +120,28 @@ else
 fi
 REGISTRY_CACHE="$TMP_BASE/extensions-registry.json"
 
+# Download to a temp path in the same dir, then mv into place only on success.
+# curl_retry resets its -o file between retries, but NOT after the final
+# attempt is exhausted — a transfer that ultimately fails can still leave a
+# partial file at $dest. For a skip-if-exists cache (checked by mere
+# existence, not content), that partial file would then be trusted forever by
+# every later invocation. mv is atomic within the same directory/filesystem,
+# so a reader never observes a half-written cache file either.
+download_cached() {
+    local url="$1" dest="$2"
+    local tmp="$dest.tmp"
+    if ! curl_retry -fsSL "$url" -o "$tmp"; then
+        rm -f "$tmp"
+        return 1
+    fi
+    mv -f "$tmp" "$dest"
+}
+
 download_manager() {
     mkdir -p "$TMP_BASE"
     if [[ ! -f "$MANAGER_PATH" ]]; then
         echo "Downloading dekube-manager from main..."
-        curl_retry -fsSL "$MANAGER_URL" -o "$MANAGER_PATH"
+        download_cached "$MANAGER_URL" "$MANAGER_PATH"
     fi
 }
 
@@ -135,7 +152,7 @@ download_manager() {
 fetch_registry() {
     mkdir -p "$TMP_BASE"
     if [[ ! -f "$REGISTRY_CACHE" ]]; then
-        curl_retry -fsSL "$REGISTRY_URL" -o "$REGISTRY_CACHE"
+        download_cached "$REGISTRY_URL" "$REGISTRY_CACHE"
     fi
 }
 
