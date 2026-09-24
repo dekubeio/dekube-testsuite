@@ -1,0 +1,20 @@
+# A7: $$(VAR) is the Kubernetes escape for a literal $(VAR); $$ collapses to $ (command/args and env values)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bugvaresc
+spec:
+  selector:
+    matchLabels: {app: bugvaresc}
+  template:
+    metadata:
+      labels: {app: bugvaresc}
+    spec:
+      containers:
+        - name: app
+          image: busybox:1.36
+          env:
+            - {name: WHO, value: world}
+            - {name: GREETING, value: "hello $(WHO), literal $$(WHO), cost $$5"}
+          command: ["sh", "-c"]
+          args: ["echo 'lit=$$(WHO) ref=$(WHO) unknown=$(NOPE) shell=$$HOME' home=$$HOME pid=$$$$ braced=$${WHO}"]

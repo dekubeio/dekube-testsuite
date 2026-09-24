@@ -1,0 +1,32 @@
+# A3: subPath on a PVC mount must mount <host_path>/<subPath>; subPathExpr warns
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: bugsubpath-data
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests: {storage: 1Gi}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bugsubpath
+spec:
+  selector:
+    matchLabels: {app: bugsubpath}
+  template:
+    metadata:
+      labels: {app: bugsubpath}
+    spec:
+      containers:
+        - name: app
+          image: busybox:1.36
+          volumeMounts:
+            - {name: data, mountPath: /var/lib/pg, subPath: pgdata}
+            - {name: data, mountPath: /var/log/app, subPath: logs/app}
+            - {name: data, mountPath: /srv/all}
+            - {name: data, mountPath: /srv/per-pod, subPathExpr: "$(POD_NAME)"}
+      volumes:
+        - name: data
+          persistentVolumeClaim: {claimName: bugsubpath-data}

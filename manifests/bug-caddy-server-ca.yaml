@@ -1,0 +1,69 @@
+# Caddy server-ca regression: the CA Secret referenced by haproxy.org/server-ca is
+# only ever referenced by annotation (no pod volume-mounts it), so nothing wrote it
+# to output_dir/secrets/<name>/ — Caddy's tls_trust_pool pointed at a file that never
+# existed on disk. Real self-signed CA cert below so Caddy actually loads it at startup.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: bugcdsca-backend-ca
+  namespace: default
+type: Opaque
+data:
+  ca.crt: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSURGekNDQWYrZ0F3SUJBZ0lVYm53TlFmYmN2SUxLQ3ZWalBRaVM1UDJYaHc0d0RRWUpLb1pJaHZjTkFRRUwKQlFBd0d6RVpNQmNHQTFVRUF3d1FZblZuWTJSelkyRXRkR1Z6ZEMxallUQWVGdzB5TmpBNU1qUXdOelEyTVRSYQpGdzB5TmpBNU1qVXdOelEyTVRSYU1Cc3hHVEFYQmdOVkJBTU1FR0oxWjJOa2MyTmhMWFJsYzNRdFkyRXdnZ0VpCk1BMEdDU3FHU0liM0RRRUJBUVVBQTRJQkR3QXdnZ0VLQW9JQkFRQ3U0ekZXLzk1YzJKSkU4N3lXVlNyZCtSZEIKV2ZQcVJaczZET1ZhcW56SW1FRjJRcjY4b2xBWnRNNmhlalZVMFlWbnA0VzEvSFFEL1MrckFsR0xHbCtRd0hUMQoxeGRlWW51M2tQTEh2WnpjSGZyajR3N3NicXcwbVhENXFQSVQwNzBrWmdiajg0d25WQXNPM1VhaXRMNW53QlZLCnQ2bGo4M1htMWE2V3FhM0hqS1pyZnkyZGsvWk8weGpMdjFpdXBBaU5nQzJ1YjRDK1dXSE9yZHZhNkd1aWd2c0MKYmNZbHVFOVE4NjE4MGZmcUxZNDk0RUJlcE1NQ0kxZVdYZGNmZURrdkxiYjU3WGxqZDM4aTFoOUk2aC9iMGpUNAo4SnRUNTdycDR2eHB3NGw4cE1wUyswU0RtLzB0aTdRWTRJVDJXRHd6NFJjekU3Z01ESVNQeUxXU0JZbkRBZ01CCkFBR2pVekJSTUIwR0ExVWREZ1FXQkJSK2h2WVlQbGdRdmdjS0FoN1YwV0lTWkhId3h6QWZCZ05WSFNNRUdEQVcKZ0JSK2h2WVlQbGdRdmdjS0FoN1YwV0lTWkhId3h6QVBCZ05WSFJNQkFmOEVCVEFEQVFIL01BMEdDU3FHU0liMwpEUUVCQ3dVQUE0SUJBUUJnbFU0ajh2MjY5d1VFb1lFdmJmb29tSDJQVTNaOWdoK295M1dYUytuTkJ5QTJEbzlXClVENnoxRzZoc1E2M3I4OG9LWHdiVUlTU28vOXQ2Wlk5cC9WQTFpVy91UWdySUwvcCtWcjFGek5paEM5Y1BRZ0wKVFBHdGlieWU3WDVwbzJ4Q29GSnJ5UGNZYUJMTi9LdEdXZzhEaWkvQU92bXgxTjdXKzIzVEkwSm5jSlFCR1M1bApxUllzV2dBZ2RNLzlJYzd4S1NUaFVZVWlycExkbkhwVFQ2Y20yMUVSVUs1OUVSaVUxR1dFMk95cW5EM1JFcGs4ClN4cXNja1pYKzVsaXdTZnEvYlo1em5Cb0ladDB1c09HUU90NzNQS2xueStFWUlXbVd2QXJPQ2xtVkp3R0hKQ3QKanY2NGdkUzN3L2Z1ZTk3dXhSZHhXZVY2enArRjBobDJJVTRjCi0tLS0tRU5EIENFUlRJRklDQVRFLS0tLS0K
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bugcdsca-backend
+  namespace: default
+  labels:
+    app: bugcdsca-backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: bugcdsca-backend
+  template:
+    metadata:
+      labels:
+        app: bugcdsca-backend
+    spec:
+      containers:
+        - name: backend
+          image: nginx:alpine
+          ports:
+            - containerPort: 443
+              name: https
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: bugcdsca-backend
+  namespace: default
+spec:
+  selector:
+    app: bugcdsca-backend
+  ports:
+    - port: 443
+      targetPort: 443
+      name: https
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: bugcdsca-ingress
+  namespace: default
+  annotations:
+    haproxy.org/server-ssl: "true"
+    haproxy.org/server-ca: "default/bugcdsca-backend-ca"
+spec:
+  rules:
+    - host: bugcdsca.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: bugcdsca-backend
+                port: {number: 443}

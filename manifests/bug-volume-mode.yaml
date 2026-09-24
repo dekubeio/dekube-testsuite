@@ -1,0 +1,50 @@
+# A4: defaultMode / items[].mode must be applied to the written ConfigMap/Secret files
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: bugmode-scripts
+data:
+  run.sh: |
+    #!/bin/sh
+    echo bugmode-ok
+  notes.txt: "not a script"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: bugmode-secret
+type: Opaque
+stringData:
+  tls.key: "private"
+  tls.crt: "public"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bugmode
+spec:
+  selector:
+    matchLabels: {app: bugmode}
+  template:
+    metadata:
+      labels: {app: bugmode}
+    spec:
+      containers:
+        - name: app
+          image: busybox:1.36
+          command: ["/scripts/run.sh"]
+          volumeMounts:
+            - {name: scripts, mountPath: /scripts}
+            - {name: tls, mountPath: /etc/tls}
+      volumes:
+        - name: scripts
+          configMap:
+            name: bugmode-scripts
+            defaultMode: 0755
+        - name: tls
+          secret:
+            secretName: bugmode-secret
+            defaultMode: 0640
+            items:
+              - {key: tls.key, path: tls.key, mode: 0400}
+              - {key: tls.crt, path: tls.crt}

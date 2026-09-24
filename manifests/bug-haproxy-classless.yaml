@@ -1,0 +1,54 @@
+# Classless Ingress carrying another controller's annotations must not be
+# claimed by the haproxy rewriter (it is first in concatenated distributions).
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: bughapcls-nginx
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: 42m
+spec:
+  rules:
+    - host: bughapcls-nginx.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: bughapcls-svc
+                port: {number: 80}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: bughapcls-traefik
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+spec:
+  rules:
+    - host: bughapcls-traefik.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: bughapcls-svc
+                port: {number: 80}
+---
+# Plain classless Ingress: still the haproxy fallback
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: bughapcls-plain
+spec:
+  rules:
+    - host: bughapcls-plain.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: bughapcls-svc
+                port: {number: 80}

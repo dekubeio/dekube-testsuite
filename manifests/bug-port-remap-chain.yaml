@@ -1,0 +1,62 @@
+# A9: Service port remaps must not chain (80->8080 and 8080->9090: :80 ends as :8080)
+apiVersion: v1
+kind: Service
+metadata:
+  name: bugchain-svc
+spec:
+  selector: {app: bugchain-backend}
+  ports:
+    - {name: web, port: 80, targetPort: 8080}
+    - {name: admin, port: 8080, targetPort: 9090}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bugchain-backend
+spec:
+  selector:
+    matchLabels: {app: bugchain-backend}
+  template:
+    metadata:
+      labels: {app: bugchain-backend}
+    spec:
+      containers:
+        - name: app
+          image: busybox:1.36
+          ports:
+            - {containerPort: 8080}
+            - {containerPort: 9090}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: bugchain-cm
+data:
+  urls.conf: |
+    web_explicit=http://bugchain-svc:80/x
+    web_implicit=http://bugchain-svc/x
+    admin=http://bugchain-svc:8080/admin
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bugchain-client
+spec:
+  selector:
+    matchLabels: {app: bugchain-client}
+  template:
+    metadata:
+      labels: {app: bugchain-client}
+    spec:
+      containers:
+        - name: app
+          image: busybox:1.36
+          env:
+            - {name: WEB_EXPLICIT, value: "http://bugchain-svc:80/x"}
+            - {name: WEB_IMPLICIT, value: "http://bugchain-svc/x"}
+            - {name: ADMIN, value: "http://bugchain-svc:8080/admin"}
+          volumeMounts:
+            - {name: cfg, mountPath: /etc/urls}
+      volumes:
+        - name: cfg
+          configMap: {name: bugchain-cm}

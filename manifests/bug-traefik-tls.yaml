@@ -1,0 +1,68 @@
+# router.tls is TLS termination on the Traefik router, not HTTPS to the
+# backend. Backend scheme comes from the Service (port 443, port name
+# https*, or the service.serversscheme annotation).
+apiVersion: v1
+kind: Service
+metadata:
+  name: bugtrftls-http
+spec:
+  selector: {app: bugtrftls-http}
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: bugtrftls-https
+spec:
+  selector: {app: bugtrftls-https}
+  ports:
+    - name: https-api
+      port: 8443
+      targetPort: 8443
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: bugtrftls-annot
+  annotations:
+    traefik.ingress.kubernetes.io/service.serversscheme: https
+spec:
+  selector: {app: bugtrftls-annot}
+  ports:
+    - name: web
+      port: 9000
+      targetPort: 9000
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: bugtrftls-ing
+  annotations:
+    traefik.ingress.kubernetes.io/router.tls: "true"
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: bugtrftls.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: bugtrftls-http
+                port: {number: 80}
+          - path: /secure
+            pathType: Prefix
+            backend:
+              service:
+                name: bugtrftls-https
+                port: {name: https-api}
+          - path: /annot
+            pathType: Prefix
+            backend:
+              service:
+                name: bugtrftls-annot
+                port: {number: 9000}

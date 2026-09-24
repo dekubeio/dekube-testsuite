@@ -1,0 +1,36 @@
+# A10: unsupported volume types and undeclared volumes must warn, not vanish silently
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bugvolunsup
+spec:
+  selector:
+    matchLabels: {app: bugvolunsup}
+  template:
+    metadata:
+      labels: {app: bugvolunsup}
+    spec:
+      containers:
+        - name: app
+          image: busybox:1.36
+          volumeMounts:
+            - {name: host, mountPath: /host}
+            - {name: host, mountPath: /host-again}
+            - {name: proj, mountPath: /proj}
+            - {name: downward, mountPath: /etc/podinfo}
+            - {name: csi-vol, mountPath: /csi}
+            - {name: ghost, mountPath: /ghost}
+      volumes:
+        - name: host
+          hostPath: {path: /var/run}
+        - name: proj
+          projected:
+            sources:
+              - configMap: {name: bugvolunsup-cm}
+        - name: downward
+          downwardAPI:
+            items:
+              - path: labels
+                fieldRef: {fieldPath: metadata.labels}
+        - name: csi-vol
+          csi: {driver: secrets-store.csi.k8s.io}

@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bugflat-app
+spec:
+  selector:
+    matchLabels: {app: bugflat-app}
+  template:
+    metadata:
+      labels: {app: bugflat-app}
+    spec:
+      containers:
+        - name: app
+          image: alpine:3
+          command: ["sleep", "infinity"]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: bugflat-svc
+spec:
+  selector: {app: bugflat-app}
+  ports:
+    - {port: 5432, targetPort: 5432}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bugflat-client
+spec:
+  selector:
+    matchLabels: {app: bugflat-client}
+  template:
+    metadata:
+      labels: {app: bugflat-client}
+    spec:
+      containers:
+        - name: client
+          image: alpine:3
+          env:
+            - {name: DB_HOST, value: "bugflat-svc:5432"}
+            - {name: OTHER_HOST, value: "bugflat-svc2:1234"}
+          command: ["sh", "-c", "curl -s http://bugflat-svc:5432/health; nc -z bugflat-svc 5432; echo /usr/local/bin/bugflat-svc"]

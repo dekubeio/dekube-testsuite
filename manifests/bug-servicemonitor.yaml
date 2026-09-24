@@ -1,0 +1,174 @@
+# ServiceMonitor provider bugs (P2/providers audit):
+# - scrape target must use the K8s Service name (alias source), not the
+#   compose service name — _build_network_aliases only registers FQDN
+#   aliases under the K8s Service name. bugsm-svc-a's compose name differs
+#   from its K8s name (Service "bugsm-svc-a" -> workload "bugsm-app-a"),
+#   which exposes the bug: old code targets "bugsm-app-a.ns1.svc.cluster.local"
+#   (never aliased), fixed code targets "bugsm-svc-a.ns1.svc.cluster.local".
+# - job_name must be unique across namespaces: two ServiceMonitors, same
+#   name ("bugsm-metrics"), different namespaces (ns1/ns2).
+# - tlsConfig.ca.configMap (ns1) must actually be written to disk, not just
+#   referenced in a compose mount.
+# - tlsConfig.ca.secret (ns2) and tlsConfig.insecureSkipVerify must not be
+#   silently ignored.
+# - namespaceSelector: absent (default) must restrict target discovery to the
+#   ServiceMonitor's own namespace. Two Services share the exact same
+#   selector labels in different namespaces (ns3's is listed FIRST); without
+#   namespace filtering, a plain "first match wins" scan over
+#   ctx.services_by_selector.values() (insertion order) picks the wrong one.
+apiVersion: v1
+kind: Service
+metadata:
+  name: bugsm-svc-wrongns
+  namespace: ns3
+spec:
+  selector: {app: bugsm-nssel-app}
+  ports:
+    - name: web
+      port: 8080
+      targetPort: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: bugsm-svc-rightns
+  namespace: ns1
+spec:
+  selector: {app: bugsm-nssel-app}
+  ports:
+    - name: web
+      port: 9091
+      targetPort: 9091
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: bugsm-metrics-nssel
+  namespace: ns1
+spec:
+  selector:
+    matchLabels: {app: bugsm-nssel-app}
+  endpoints:
+    - port: web
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bugsm-app-a
+  namespace: ns1
+spec:
+  selector:
+    matchLabels: {app: bugsm-app-a}
+  template:
+    metadata:
+      labels: {app: bugsm-app-a}
+    spec:
+      containers:
+        - name: app
+          image: busybox:1.36
+          command: ["sh", "-c", "sleep 3600"]
+          ports:
+            - name: metrics
+              containerPort: 9100
+---
+# Service name deliberately differs from the workload name it selects, so
+# alias_map["bugsm-svc-a"] = "bugsm-app-a" (compose name != K8s name).
+apiVersion: v1
+kind: Service
+metadata:
+  name: bugsm-svc-a
+  namespace: ns1
+spec:
+  selector: {app: bugsm-app-a}
+  ports:
+    - name: metrics
+      port: 9100
+      targetPort: 9100
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: bugsm-ca-cm
+  namespace: ns1
+data:
+  ca.crt: |
+    -----BEGIN CERTIFICATE-----
+    ZmFrZS1jYS1jb25maWdtYXAtY29udGVudA==
+    -----END CERTIFICATE-----
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: bugsm-metrics
+  namespace: ns1
+spec:
+  selector:
+    matchLabels: {app: bugsm-app-a}
+  endpoints:
+    - port: metrics
+      scheme: https
+      tlsConfig:
+        ca:
+          configMap:
+            name: bugsm-ca-cm
+            key: ca.crt
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bugsm-app-b
+  namespace: ns2
+spec:
+  selector:
+    matchLabels: {app: bugsm-app-b}
+  template:
+    metadata:
+      labels: {app: bugsm-app-b}
+    spec:
+      containers:
+        - name: app
+          image: busybox:1.36
+          command: ["sh", "-c", "sleep 3600"]
+          ports:
+            - name: metrics
+              containerPort: 9100
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: bugsm-app-b
+  namespace: ns2
+spec:
+  selector: {app: bugsm-app-b}
+  ports:
+    - name: metrics
+      port: 9100
+      targetPort: 9100
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: bugsm-ca-secret
+  namespace: ns2
+data:
+  ca.crt: ZmFrZS1jYS1zZWNyZXQtY29udGVudA==
+---
+# Same name as the ServiceMonitor in ns1 ("bugsm-metrics") but a different
+# namespace — job_name must stay unique across the two.
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: bugsm-metrics
+  namespace: ns2
+spec:
+  selector:
+    matchLabels: {app: bugsm-app-b}
+  endpoints:
+    - port: metrics
+      scheme: https
+      tlsConfig:
+        insecureSkipVerify: true
+        ca:
+          secret:
+            name: bugsm-ca-secret
+            key: ca.crt

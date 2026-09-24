@@ -1,0 +1,35 @@
+# A5: env wins over envFrom; among envFrom sources the last one wins
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: bugenvprec-a
+data:
+  FOO: from-a
+  BAR: from-a
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: bugenvprec-b
+data:
+  BAR: from-b
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bugenvprec
+spec:
+  selector:
+    matchLabels: {app: bugenvprec}
+  template:
+    metadata:
+      labels: {app: bugenvprec}
+    spec:
+      containers:
+        - name: app
+          image: busybox:1.36
+          env:
+            - {name: FOO, value: from-env}
+          envFrom:
+            - configMapRef: {name: bugenvprec-a}
+            - configMapRef: {name: bugenvprec-b}

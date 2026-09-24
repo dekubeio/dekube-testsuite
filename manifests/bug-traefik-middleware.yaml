@@ -1,0 +1,60 @@
+# Only a Middleware that really is a StripPrefix strips; any other
+# middleware reference is not emulated and must warn.
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: bugtrfmw-strip
+  namespace: bugtrfmw
+spec:
+  stripPrefix:
+    prefixes:
+      - /bugtrfmw-api
+---
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: bugtrfmw-auth
+  namespace: bugtrfmw
+spec:
+  basicAuth:
+    secret: bugtrfmw-users
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: bugtrfmw-strip-ing
+  namespace: bugtrfmw
+  annotations:
+    traefik.ingress.kubernetes.io/router.middlewares: bugtrfmw-bugtrfmw-strip@kubernetescrd
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: bugtrfmw.example.com
+      http:
+        paths:
+          - path: /bugtrfmw-api/v1
+            pathType: Prefix
+            backend:
+              service:
+                name: bugtrfmw-svc
+                port: {number: 80}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: bugtrfmw-auth-ing
+  namespace: bugtrfmw
+  annotations:
+    traefik.ingress.kubernetes.io/router.middlewares: bugtrfmw-bugtrfmw-auth@kubernetescrd,bugtrfmw-ipallow@file
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: bugtrfmw.example.com
+      http:
+        paths:
+          - path: /bugtrfmw-admin
+            pathType: Prefix
+            backend:
+              service:
+                name: bugtrfmw-svc
+                port: {number: 80}

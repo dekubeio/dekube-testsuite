@@ -1,0 +1,51 @@
+# Ingress with an explicitly null class (Helm conditional rendered to null):
+# get_ingress_class() must treat it as classless instead of crashing on None.lower().
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bugnullic-web
+  namespace: bugnullic
+spec:
+  selector:
+    matchLabels: {app: bugnullic-web}
+  template:
+    metadata:
+      labels: {app: bugnullic-web}
+    spec:
+      containers:
+        - name: web
+          image: nginx:1.27
+          ports:
+            - containerPort: 80
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: bugnullic-web
+  namespace: bugnullic
+spec:
+  selector: {app: bugnullic-web}
+  ports:
+    - port: 80
+      targetPort: 80
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: bugnullic-web
+  namespace: bugnullic
+  annotations:
+    kubernetes.io/ingress.class: null
+spec:
+  ingressClassName: null
+  rules:
+    - host: bugnullic.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: bugnullic-web
+                port:
+                  number: 80

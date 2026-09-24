@@ -1,0 +1,31 @@
+# _is_bitnami_image() used substring matching ("redis" in image), so a
+# bitnami/redis-exporter (or -sentinel) sidecar got misidentified as bitnami/redis
+# and clobbered into a stock redis-server on 6379 — losing the exporter entirely.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bugbnsc-redis
+  namespace: default
+  labels:
+    app: bugbnsc-redis
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: bugbnsc-redis
+  template:
+    metadata:
+      labels:
+        app: bugbnsc-redis
+    spec:
+      containers:
+        - name: redis
+          image: docker.io/bitnami/redis:7.2.5-debian-12-r4
+          ports:
+            - containerPort: 6379
+              name: redis
+        - name: redis-exporter
+          image: bitnami/redis-exporter:1.58.0-debian-12-r2
+          ports:
+            - containerPort: 9121
+              name: metrics

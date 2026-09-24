@@ -1,0 +1,59 @@
+# rewrite-target with capture groups (ingress-nginx >= 0.22 semantics):
+# "/prefix(/|$)(.*)" + "/$2" is a strip-prefix; "/v2/$2" is not expressible.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: bugngxrw-sep
+  annotations:
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: bugngxrw.example.com
+      http:
+        paths:
+          - path: /bugngxrw-sep(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: bugngxrw-svc
+                port: {number: 80}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: bugngxrw-slash
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /$1
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: bugngxrw.example.com
+      http:
+        paths:
+          - path: /bugngxrw-slash/(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: bugngxrw-svc
+                port: {number: 80}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: bugngxrw-prefix
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /v2/$2
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: bugngxrw.example.com
+      http:
+        paths:
+          - path: /bugngxrw-prefix(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: bugngxrw-svc
+                port: {number: 80}

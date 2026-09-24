@@ -1,0 +1,29 @@
+# A6: envFrom.secretRef must include stringData keys (stringData overrides data)
+apiVersion: v1
+kind: Secret
+metadata:
+  name: bugstrdata-sec
+type: Opaque
+data:
+  FROM_DATA: aGVsbG8tdGV4dA==
+  DUP: b2xk
+stringData:
+  API_KEY: s3cr3t
+  DUP: new
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bugstrdata
+spec:
+  selector:
+    matchLabels: {app: bugstrdata}
+  template:
+    metadata:
+      labels: {app: bugstrdata}
+    spec:
+      containers:
+        - name: app
+          image: busybox:1.36
+          envFrom:
+            - secretRef: {name: bugstrdata-sec}

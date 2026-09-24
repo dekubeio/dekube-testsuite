@@ -1,0 +1,41 @@
+# Access-control annotations are not emulated: the endpoint ends up open
+# in compose, which must be warned about loudly, per Ingress.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: bugngxauth-ext
+  annotations:
+    nginx.ingress.kubernetes.io/auth-url: http://bugngxauth-oauth.example.com/oauth2/auth
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: bugngxauth-ext.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: bugngxauth-svc
+                port: {number: 80}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: bugngxauth-basic
+  annotations:
+    nginx.ingress.kubernetes.io/auth-type: basic
+    nginx.ingress.kubernetes.io/auth-secret: bugngxauth-users
+    nginx.ingress.kubernetes.io/whitelist-source-range: 10.0.0.0/8
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: bugngxauth-basic.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: bugngxauth-svc
+                port: {number: 80}

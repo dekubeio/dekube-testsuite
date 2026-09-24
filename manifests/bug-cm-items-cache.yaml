@@ -1,0 +1,94 @@
+# A1: two mounts of the same ConfigMap/Secret with different `items` must not share one filtered tree
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: bugitems-cm
+data:
+  a.conf: "alpha"
+  b.conf: "bravo"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: bugitems-secret
+type: Opaque
+stringData:
+  one.key: "first"
+  two.key: "second"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bugitems-one
+spec:
+  selector:
+    matchLabels: {app: bugitems-one}
+  template:
+    metadata:
+      labels: {app: bugitems-one}
+    spec:
+      containers:
+        - name: app
+          image: busybox:1.36
+          volumeMounts:
+            - {name: cfg, mountPath: /etc/cfg}
+            - {name: sec, mountPath: /etc/sec}
+      volumes:
+        - name: cfg
+          configMap:
+            name: bugitems-cm
+            items: [{key: a.conf, path: a.conf}]
+        - name: sec
+          secret:
+            secretName: bugitems-secret
+            items: [{key: one.key, path: renamed.key}]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bugitems-two
+spec:
+  selector:
+    matchLabels: {app: bugitems-two}
+  template:
+    metadata:
+      labels: {app: bugitems-two}
+    spec:
+      containers:
+        - name: app
+          image: busybox:1.36
+          volumeMounts:
+            - {name: cfg, mountPath: /etc/cfg}
+            - {name: sec, mountPath: /etc/sec}
+      volumes:
+        - name: cfg
+          configMap:
+            name: bugitems-cm
+            items: [{key: b.conf, path: b.conf}]
+        - name: sec
+          secret:
+            secretName: bugitems-secret
+            items: [{key: two.key, path: two.key}]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bugitems-all
+spec:
+  selector:
+    matchLabels: {app: bugitems-all}
+  template:
+    metadata:
+      labels: {app: bugitems-all}
+    spec:
+      containers:
+        - name: app
+          image: busybox:1.36
+          volumeMounts:
+            - {name: cfg, mountPath: /etc/cfg}
+            - {name: sec, mountPath: /etc/sec}
+      volumes:
+        - name: cfg
+          configMap: {name: bugitems-cm}
+        - name: sec
+          secret: {secretName: bugitems-secret}

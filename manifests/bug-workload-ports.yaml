@@ -1,0 +1,97 @@
+# Workload ports/resources audit fixture (W1-W4):
+# - null targetPort/nodePort on a NodePort Service must default to `port` (K8s semantics),
+#   not produce a literal "None" in the compose port mapping.
+# - LoadBalancer must publish on `port` (the external LB port), not `nodePort`.
+# - UDP protocol must produce a `/udp` compose port; SCTP has no compose equivalent
+#   and must warn (published as TCP).
+# - a null resource limit (memory or cpu) must be dropped, not turned into "None".
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bugwlports-nodeport
+  namespace: default
+  labels:
+    app: bugwlports-nodeport
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: bugwlports-nodeport
+  template:
+    metadata:
+      labels:
+        app: bugwlports-nodeport
+    spec:
+      containers:
+        - name: app
+          image: bugwlports-nodeport:1.0
+          ports:
+            - containerPort: 9000
+              name: http
+          resources:
+            limits:
+              memory: null
+              cpu: "250m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: bugwlports-nodeport
+  namespace: default
+spec:
+  type: NodePort
+  selector:
+    app: bugwlports-nodeport
+  ports:
+    - port: 9000
+      targetPort: null
+      nodePort: null
+      protocol: TCP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bugwlports-lb
+  namespace: default
+  labels:
+    app: bugwlports-lb
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: bugwlports-lb
+  template:
+    metadata:
+      labels:
+        app: bugwlports-lb
+    spec:
+      containers:
+        - name: app
+          image: bugwlports-lb:1.0
+          ports:
+            - containerPort: 9100
+              name: game
+          resources:
+            limits:
+              memory: "128Mi"
+              cpu: null
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: bugwlports-lb
+  namespace: default
+spec:
+  type: LoadBalancer
+  selector:
+    app: bugwlports-lb
+  ports:
+    - name: game
+      port: 9100
+      targetPort: 9100
+      nodePort: 30100
+      protocol: UDP
+    - name: telemetry
+      port: 9200
+      targetPort: 9200
+      protocol: SCTP

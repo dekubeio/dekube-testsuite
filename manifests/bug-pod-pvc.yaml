@@ -1,0 +1,17 @@
+# Bare Pod mounting a PVC: the PVC indexer must register the claim on first run
+apiVersion: v1
+kind: Pod
+metadata:
+  name: bugpodpvc-worker
+spec:
+  containers:
+    - name: worker
+      image: busybox:1.36
+      command: ["sleep", "infinity"]
+      volumeMounts:
+        - name: data
+          mountPath: /data
+  volumes:
+    - name: data
+      persistentVolumeClaim:
+        claimName: bugpodpvc-data

@@ -1,0 +1,24 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: bugfpfsg-db
+spec:
+  serviceName: bugfpfsg-db
+  selector:
+    matchLabels: {app: bugfpfsg-db}
+  template:
+    metadata:
+      labels: {app: bugfpfsg-db}
+    spec:
+      securityContext: {fsGroup: 2000}
+      containers:
+        - name: db
+          image: postgres:16-alpine
+          securityContext: {runAsUser: 1000}
+          volumeMounts:
+            - {name: bugfpfsg-data, mountPath: /var/lib/postgresql/data}
+  volumeClaimTemplates:
+    - metadata: {name: bugfpfsg-data}
+      spec:
+        accessModes: [ReadWriteOnce]
+        resources: {requests: {storage: 1Gi}}
