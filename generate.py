@@ -215,7 +215,7 @@ def main():
         os.makedirs(release_dir, exist_ok=True)
         content = generate_release(release_idx, n, cm_names, fqdns)
         manifest_path = os.path.join(release_dir, "manifests.yaml")
-        with open(manifest_path, "w") as f:
+        with open(manifest_path, "w", encoding="utf-8") as f:
             f.write(content)
 
     print(f"Done. {n} release directories written to {output}")
