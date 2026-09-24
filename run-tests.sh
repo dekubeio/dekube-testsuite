@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
+# diff/grep output is parsed below: pin the locale ("Only in", "Binary files")
+export LC_ALL=C
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 VERSIONS_FILE="$SCRIPT_DIR/dekube-known-versions.json"
@@ -327,7 +329,7 @@ diff_outputs() {
         local added removed changed
         added=$(grep -c '^+[^+]' "$diff_file" 2>/dev/null || true)
         removed=$(grep -c '^-[^-]' "$diff_file" 2>/dev/null || true)
-        changed=$(grep -c '^diff ' "$diff_file" 2>/dev/null || true)
+        changed=$(grep -cE '^(diff |Only in |Binary files )' "$diff_file" 2>/dev/null || true)
         echo "  $label: ${changed} file(s) differ (+${added} -${removed} lines)"
         cat "$diff_file"
         return 1
