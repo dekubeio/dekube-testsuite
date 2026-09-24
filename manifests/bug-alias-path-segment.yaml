@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bugaliaspath-backend
+spec:
+  selector:
+    matchLabels: {app: bugaliaspath-backend}
+  template:
+    metadata:
+      labels: {app: bugaliaspath-backend}
+    spec:
+      containers:
+        - name: backend
+          image: alpine:3
+          command: ["sleep", "infinity"]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: bugaliaspath-api
+spec:
+  selector: {app: bugaliaspath-backend}
+  ports:
+    - {port: 80, targetPort: 8080}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bugaliaspath-client
+spec:
+  selector:
+    matchLabels: {app: bugaliaspath-client}
+  template:
+    metadata:
+      labels: {app: bugaliaspath-client}
+    spec:
+      containers:
+        - name: client
+          image: alpine:3
+          command: ["sleep", "infinity"]
+          env:
+            # path segment named like the Service: must NOT be rewritten
+            - {name: GW_URL, value: "http://bugaliaspath-gw/bugaliaspath-api/v1"}
+            # real hosts (after // and after @): must be rewritten
+            - {name: API_URL, value: "http://bugaliaspath-api/v1"}
+            - {name: API_DSN, value: "redis://:pw@bugaliaspath-api:80/0"}

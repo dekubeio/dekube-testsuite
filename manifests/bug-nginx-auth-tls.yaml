@@ -1,0 +1,42 @@
+# Client-cert mTLS (auth-tls-secret / auth-tls-verify-client) is not emulated
+# in compose and must join the loud "access control NOT emulated" warning —
+# except when auth-tls-verify-client is explicitly "off" (the only way nginx
+# itself disables the check), which stays quiet.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: bugngxtls-on
+  annotations:
+    nginx.ingress.kubernetes.io/auth-tls-secret: default/bugngxtls-ca
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: bugngxtls-on.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: bugngxtls-svc
+                port: {number: 80}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: bugngxtls-off
+  annotations:
+    nginx.ingress.kubernetes.io/auth-tls-secret: default/bugngxtls-ca
+    nginx.ingress.kubernetes.io/auth-tls-verify-client: "off"
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: bugngxtls-off.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: bugngxtls-svc
+                port: {number: 80}

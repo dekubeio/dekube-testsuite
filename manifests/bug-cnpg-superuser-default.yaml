@@ -1,0 +1,28 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: bugsudefault
+  namespace: data
+spec:
+  instances: 1
+  imageName: ghcr.io/cloudnative-pg/postgresql:16.4
+  storage: {size: 1Gi}
+  bootstrap:
+    initdb:
+      database: app
+      owner: app
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: bugsuenabled
+  namespace: data
+spec:
+  instances: 1
+  imageName: ghcr.io/cloudnative-pg/postgresql:16.4
+  enableSuperuserAccess: true
+  storage: {size: 1Gi}
+  bootstrap:
+    initdb:
+      database: app
+      owner: app

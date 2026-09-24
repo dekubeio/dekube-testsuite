@@ -1,0 +1,31 @@
+# Hostless rule and spec.defaultBackend: catch-all routing that the entry
+# format cannot express — must warn instead of being dropped silently.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: bugngxhl-ing
+  annotations:
+    kubernetes.io/ingress.class: nginx
+spec:
+  defaultBackend:
+    service:
+      name: bugngxhl-default
+      port: {number: 80}
+  rules:
+    - http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: bugngxhl-svc
+                port: {number: 80}
+    - host: bugngxhl.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: bugngxhl-svc
+                port: {number: 80}

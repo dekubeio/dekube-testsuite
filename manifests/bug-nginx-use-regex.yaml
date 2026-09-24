@@ -1,0 +1,43 @@
+# use-regex: "true" WITHOUT rewrite-target: the path is a regex nginx matches
+# against the raw URI and forwards unmodified — Caddy/nginx providers instead
+# take "path" as a literal prefix, so a naive regex is routed wrong.
+# A literal-prefix-plus-wildcard regex (no rewrite-target) behaves exactly
+# like a plain prefix match and can be translated cheaply; anything with
+# alternation/character classes in it cannot and must be warned about loudly.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: bugngxur-ok
+  annotations:
+    nginx.ingress.kubernetes.io/use-regex: "true"
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: bugngxur.example.com
+      http:
+        paths:
+          - path: /bugngxur-ok(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: bugngxur-svc
+                port: {number: 80}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: bugngxur-bad
+  annotations:
+    nginx.ingress.kubernetes.io/use-regex: "true"
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: bugngxur.example.com
+      http:
+        paths:
+          - path: /bugngxur-bad/(foo|bar)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: bugngxur-svc
+                port: {number: 80}

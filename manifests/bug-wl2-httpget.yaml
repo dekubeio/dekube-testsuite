@@ -1,0 +1,31 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bugwl2httpget-app
+spec:
+  selector:
+    matchLabels: {app: bugwl2httpget-app}
+  template:
+    metadata:
+      labels: {app: bugwl2httpget-app}
+    spec:
+      containers:
+        - name: app
+          image: alpine:3
+          command: ["sleep", "infinity"]
+          ports:
+            - containerPort: 8080
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8080
+              httpHeaders:
+                - name: X-Health-Check
+                  value: probe
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+              scheme: HTTPS
+            periodSeconds: 10
