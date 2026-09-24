@@ -11,6 +11,14 @@ REGISTRY_URL="$RAW_BASE/dekubeio/dekube-manager/main/extensions.json"
 TMP_BASE="/tmp/dekube-testsuite"
 MANAGER_PATH="$TMP_BASE/dekube-manager.py"
 
+# curl wrapper: retry on any error (including a mid-transfer network reset),
+# not just the transient HTTP codes --retry alone covers. Safe with -o (curl
+# discards the partial file before retrying); never use with `>`/`|`/`$()`
+# redirection — retries would then duplicate output instead of replacing it.
+curl_retry() {
+    curl --retry 3 --retry-all-errors --retry-delay 2 "$@"
+}
+
 # Cleanup on exit
 _CLEANUP_DIRS=()
 cleanup() {
@@ -97,13 +105,31 @@ if [[ -n "$LOCAL_CORE" ]]; then
 else
     CORE_LATEST_CACHE="$TMP_BASE/core-latest.py"
 fi
+REGISTRY_CACHE="$TMP_BASE/extensions-registry.json"
 
 download_manager() {
     mkdir -p "$TMP_BASE"
     if [[ ! -f "$MANAGER_PATH" ]]; then
         echo "Downloading dekube-manager from main..."
-        curl -fsSL "$MANAGER_URL" -o "$MANAGER_PATH"
+        curl_retry -fsSL "$MANAGER_URL" -o "$MANAGER_PATH"
     fi
+}
+
+# Fetch the extension registry once per run, into a file. Never capture curl
+# output via $(...) here: curl_retry's retries only reset a file given to -o,
+# so a $(...) capture would end up with attempt 1's partial bytes followed by
+# attempt 2's full output concatenated together.
+fetch_registry() {
+    mkdir -p "$TMP_BASE"
+    if [[ ! -f "$REGISTRY_CACHE" ]]; then
+        curl_retry -fsSL "$REGISTRY_URL" -o "$REGISTRY_CACHE"
+    fi
+}
+
+registry_field() {
+    local ext="$1" field="$2"
+    python3 -c "import json,sys; print(json.load(open(sys.argv[1]))['extensions'][sys.argv[2]][sys.argv[3]])" \
+        "$REGISTRY_CACHE" "$ext" "$field"
 }
 
 download_latest_core() {
@@ -116,7 +142,7 @@ download_latest_core() {
         # download when $CORE_LATEST_CACHE already existed used to mean a --keep run's
         # leftover file got treated as "latest" forever by every later plain run.
         echo "Downloading latest distribution release..."
-        curl -fsSL -o "$CORE_LATEST_CACHE" \
+        curl_retry -fsSL -o "$CORE_LATEST_CACHE" \
             "https://github.com/$CORE_REPO/releases/latest/download/helmfile2compose.py"
     fi
 }
@@ -132,17 +158,15 @@ install_from_main() {
     cp "$CORE_LATEST_CACHE" "$workdir/.dekube/helmfile2compose.py"
 
     if [[ ${#exts[@]} -gt 0 ]]; then
-        # Fetch registry once to resolve repo/file for each extension
-        local registry
-        registry=$(curl -fsSL "$REGISTRY_URL")
+        fetch_registry
         for ext in "${exts[@]}"; do
             local repo file
-            repo=$(printf '%s' "$registry" | python3 -c "import json,sys; print(json.load(sys.stdin)['extensions']['$ext']['repo'])")
-            file=$(printf '%s' "$registry" | python3 -c "import json,sys; print(json.load(sys.stdin)['extensions']['$ext']['file'])")
+            repo=$(registry_field "$ext" repo)
+            file=$(registry_field "$ext" file)
             if [[ -n "${LOCAL_EXTS[$ext]:-}" ]]; then
                 cp "${LOCAL_EXTS[$ext]}" "$workdir/.dekube/extensions/$file"
             else
-                curl -fsSL "$RAW_BASE/$repo/main/$file" \
+                curl_retry -fsSL "$RAW_BASE/$repo/main/$file" \
                     -o "$workdir/.dekube/extensions/$file"
             fi
         done
@@ -250,7 +274,7 @@ download_core() {
         download_latest_core
         cp "$CORE_LATEST_CACHE" "$dest"
     else
-        curl -fsSL -o "$dest" \
+        curl_retry -fsSL -o "$dest" \
             "https://github.com/$CORE_REPO/releases/download/$version/helmfile2compose.py"
     fi
 }

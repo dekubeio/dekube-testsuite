@@ -31,6 +31,9 @@ Compares dekube output between a **pinned reference version** and the **latest r
 
 ## What it does
 
+Every download retries automatically (`curl --retry 3 --retry-all-errors`) — a single
+mid-transfer network reset no longer aborts the whole run.
+
 ### Regression
 
 1. Downloads dekube-manager from `main`
