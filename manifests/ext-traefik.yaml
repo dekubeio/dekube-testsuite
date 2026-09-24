@@ -1,0 +1,40 @@
+# Traefik ingress rewriter — standard Ingress + traefik annotations
+# (router.tls, router.middlewares, router.entrypoints). NOTE: Traefik CRDs
+# (IngressRoute, Middleware) are explicitly NOT supported by this rewriter
+# (README: "POC/Untested" — CRDs need a full converter, not a rewriter),
+# so this fixture exercises the annotated-Ingress path rather than a CRD.
+apiVersion: v1
+kind: Service
+metadata:
+  name: exttfk-web
+  namespace: default
+spec:
+  selector:
+    app: exttfk-web
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: exttfk-web-ingress
+  namespace: default
+  annotations:
+    kubernetes.io/ingress.class: traefik
+    traefik.ingress.kubernetes.io/router.tls: "true"
+    traefik.ingress.kubernetes.io/router.middlewares: "default-strip-prefix@kubernetescrd"
+    traefik.ingress.kubernetes.io/router.entrypoints: "websecure"
+spec:
+  rules:
+    - host: exttfk.example.com
+      http:
+        paths:
+          - path: /app
+            pathType: Prefix
+            backend:
+              service:
+                name: exttfk-web
+                port:
+                  number: 8080

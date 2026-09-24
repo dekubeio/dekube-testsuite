@@ -123,7 +123,9 @@ dekube-testsuite/
 │   ├── ingress.yaml              # paths, TLS, annotations
 │   ├── configmaps-secrets.yaml   # volume mounts, envFrom, shared refs
 │   ├── crds.yaml                 # KeycloakRealmImport, Certificate, ServiceMonitor
-│   └── edge-cases.yaml           # empty docs, 64-char names, missing ns
+│   ├── edge-cases.yaml           # empty docs, 64-char names, missing ns
+│   ├── bug-*.yaml                # regression fixtures, one per fixed bug
+│   └── ext-<name>.yaml           # per-extension main-path fixtures (nginx, traefik, keycloak, servicemonitor, ...)
 ├── generate.py                   # torture test generator (writes to /tmp)
 ├── dekube-known-versions.json     # reference versions for comparison
 ├── run-tests.sh                  # main test runner

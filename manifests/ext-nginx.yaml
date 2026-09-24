@@ -1,0 +1,42 @@
+# Nginx ingress rewriter — main annotation paths: rewrite-target, backend-protocol,
+# CORS, proxy-body-size, configuration-snippet (more_set_headers)
+apiVersion: v1
+kind: Service
+metadata:
+  name: extngx-api
+  namespace: default
+spec:
+  selector:
+    app: extngx-api
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: extngx-api-ingress
+  namespace: default
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    nginx.ingress.kubernetes.io/rewrite-target: /$1
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
+    nginx.ingress.kubernetes.io/enable-cors: "true"
+    nginx.ingress.kubernetes.io/cors-allow-origin: "https://app.example.com"
+    nginx.ingress.kubernetes.io/cors-allow-methods: "GET, POST, OPTIONS"
+    nginx.ingress.kubernetes.io/proxy-body-size: "32m"
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      more_set_headers "X-Frame-Options: DENY";
+spec:
+  rules:
+    - host: extngx.example.com
+      http:
+        paths:
+          - path: /api/(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: extngx-api
+                port:
+                  number: 8080

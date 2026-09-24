@@ -1,0 +1,45 @@
+# ServiceMonitor provider — Prometheus CR + Service + ServiceMonitor,
+# resolved by label selector to a named Service port.
+apiVersion: monitoring.coreos.com/v1
+kind: Prometheus
+metadata:
+  name: extsm-prometheus
+  namespace: monitoring
+spec:
+  image: prom/prometheus:v2.53.0
+  version: v2.53.0
+  retention: 15d
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: extsm-api
+  namespace: default
+  labels:
+    app: extsm-api
+spec:
+  selector:
+    app: extsm-api
+  ports:
+    - name: metrics
+      port: 9090
+      targetPort: 9090
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: extsm-api-monitor
+  namespace: monitoring
+  labels:
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      app: extsm-api
+  namespaceSelector:
+    matchNames:
+      - default
+  endpoints:
+    - port: metrics
+      interval: 15s
+      path: /metrics
