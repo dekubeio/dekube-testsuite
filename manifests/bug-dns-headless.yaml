@@ -5,7 +5,8 @@
 #   values below resolve without any rewrite. Compose runs one replica, so
 #   ordinal 1 (PG_SHORT) gets no alias.
 # - flatten-internal-urls: the whole pod FQDN collapses to the headless
-#   service name alone (bugdnshl-pg-hl).
+#   service name (bugdnshl-pg-hl), which flatten then maps to the compose
+#   service (bugdnshl-pg) wherever it is followed by a port.
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
