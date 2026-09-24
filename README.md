@@ -107,6 +107,23 @@ Extensions listed here are tested individually; unlisted are skipped. Extensions
 
 **Future**: `exclude-ext-all` is a stopgap. The plan is to replace it with explicit `ext-sets` — named combos of extensions to test together.
 
+## Reference vs latest — what actually gets measured
+
+- **`core` in `dekube-known-versions.json`** = the pinned reference. It's fetched from the
+  matching GitHub **release** tag (`releases/download/<tag>/...`).
+- **`latest`** (default, no flags) = the engine's latest GitHub **release**
+  (`releases/latest/download/...`) plus dependency extensions (keycloak, nginx, cert-manager,
+  ...) pulled straight from each extension repo's **`main`** branch.
+- Right after a rebaseline (`core` bumped to match the newest release), `ref` and the release
+  half of `latest` are the same commit — a plain run measures nothing on the engine side until
+  a new release is cut upstream. The dependency-extension half of `latest` still tracks `main`,
+  so extension-only regressions are still caught in the interim.
+- To get signal on **unreleased engine/extension work** before the next tag: `--local-core` /
+  `--local-ext` swap in your own working copy on the `latest` side (ref stays pinned).
+- To get signal on **main-branch built-in extensions** without a local checkout: `--latest-main`
+  folds the built-in/bundled extensions' `main` branch into the `latest` core build (engine body
+  itself is still the latest release — see `--help`).
+
 ## CI
 
 The GitHub Actions workflow runs regression only (weekly + on push to test files). Performance tests are manual — run them on your own machine.
